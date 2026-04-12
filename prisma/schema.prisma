@@ -1,0 +1,363 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Staff {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  phone          String
+  role           String   @default("STAFF") // SUPER_ADMIN, ADMIN, RECEPTIONIST, DOCTOR, ACCOUNTANT, LAB_TECHNICIAN, NURSE, HR_MANAGER, INVENTORY_MANAGER, STAFF
+  department     String?
+  specialization String?
+  password       String   @default("password123")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  appointments    Appointment[]
+  prescriptions   Prescription[]
+  attendance      Attendance[]
+  salary          Salary[]
+  labReports      LabReport[]
+  samplesCollected Sample[]
+  reviewedReports LabReport[] @relation("Reviewer")
+  duties          DutyRoster[]
+  schedules       DoctorSchedule[]
+}
+
+model Patient {
+  id              String   @id @default(cuid())
+  patientId       String   @unique
+  name            String
+  email           String?
+  phone           String
+  dateOfBirth     DateTime?
+  gender          String?   // MALE, FEMALE, OTHER
+  bloodGroup      String?
+  address         String?
+  emergencyContact String?
+  emergencyPhone  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  appointments Appointment[]
+  prescriptions Prescription[]
+  invoices     Invoice[]
+  samples      Sample[]
+  labReports   LabReport[]
+  feedback     Feedback[]
+}
+
+model Appointment {
+  id           String   @id @default(cuid())
+  patientId    String
+  doctorId     String
+  date         DateTime
+  timeSlot     String
+  status       String   @default("BOOKED") // BOOKED, CONFIRMED, COMPLETED, CANCELLED, NO_SHOW
+  type         String   @default("CONSULTATION") // CONSULTATION, FOLLOW_UP
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  patient      Patient     @relation(fields: [patientId], references: [id])
+  doctor       Staff       @relation(fields: [doctorId], references: [id])
+  prescription Prescription?
+  invoice      Invoice?
+}
+
+model Prescription {
+  id            String   @id @default(cuid())
+  appointmentId String   @unique
+  doctorId      String
+  patientId     String
+  symptoms      String?
+  diagnosis     String?
+  medicines     String?
+  notes         String?
+  followUpDate  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+  doctor      Staff       @relation(fields: [doctorId], references: [id])
+  patient     Patient     @relation(fields: [patientId], references: [id])
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  invoiceNo     String   @unique
+  patientId     String
+  appointmentId String?  @unique
+  totalAmount   Float
+  discount      Float    @default(0)
+  netAmount     Float
+  status        String   @default("PENDING") // PENDING, PAID, PARTIALLY_PAID, CANCELLED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  patient     Patient       @relation(fields: [patientId], references: [id])
+  appointment Appointment?  @relation(fields: [appointmentId], references: [id])
+  items       InvoiceItem[]
+  payments    Payment[]
+}
+
+model InvoiceItem {
+  id          String @id @default(cuid())
+  invoiceId   String
+  description String
+  category    String  // CONSULTATION, LAB_TEST, MEDICINE, OTHER
+  quantity    Int     @default(1)
+  unitPrice   Float
+  total       Float
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  invoiceId String
+  amount    Float
+  method    String   // CASH, CARD, BKASH, OTHER
+  reference String?
+  createdAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId])
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  category    String   // SALARY, UTILITY, MAINTENANCE, SUPPLIES, OTHER
+  description String
+  amount      Float
+  date        DateTime
+  reference   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model TestType {
+  id             String   @id @default(cuid())
+  name           String
+  category       String?
+  price          Float
+  description    String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  labReports LabReport[]
+}
+
+model LabReport {
+  id           String   @id @default(cuid())
+  reportNo     String   @unique
+  patientId    String
+  testTypeId   String
+  technicianId String?
+  sampleId     String?  @unique
+  results      String?
+  status       String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, REVIEWED
+  notes        String?
+  reviewedBy   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  patient    Patient     @relation(fields: [patientId], references: [id])
+  testType   TestType    @relation(fields: [testTypeId], references: [id])
+  technician Staff?      @relation(fields: [technicianId], references: [id])
+  reviewer   Staff?      @relation("Reviewer", fields: [reviewedBy], references: [id])
+  sample     Sample?     @relation(fields: [sampleId], references: [id])
+
+  @@index([patientId])
+  @@index([status])
+}
+
+model Sample {
+  id           String   @id @default(cuid())
+  sampleId     String   @unique
+  patientId    String
+  reportId     String?  @unique
+  collectedBy  String?
+  status       String   @default("COLLECTED") // COLLECTED, TESTING, COMPLETED, DISCARDED
+  collectedAt  DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  patient        Patient     @relation(fields: [patientId], references: [id])
+  collectedByStaff Staff?    @relation(fields: [collectedBy], references: [id])
+  labReport      LabReport?
+
+  @@index([status])
+}
+
+model InventoryItem {
+  id          String    @id @default(cuid())
+  name        String
+  category    String    // MEDICINE, CHEMICAL, SYRINGE, CONSUMABLE, EQUIPMENT, OTHER
+  unit        String
+  quantity    Int       @default(0)
+  minStock    Int       @default(10)
+  unitPrice   Float
+  supplierId  String?
+  description String?
+  expiryDate  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  supplier     Supplier?          @relation(fields: [supplierId], references: [id])
+  transactions StockTransaction[]
+  orderItems   PurchaseOrderItem[]
+
+  @@index([category])
+}
+
+model Supplier {
+  id            String   @id @default(cuid())
+  name          String
+  contactPerson String?
+  phone         String
+  email         String?
+  address       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items          InventoryItem[]
+  purchaseOrders PurchaseOrder[]
+}
+
+model StockTransaction {
+  id        String   @id @default(cuid())
+  itemId    String
+  type      String   // IN, OUT, ADJUSTMENT
+  quantity  Int
+  reason    String?
+  reference String?
+  createdAt DateTime @default(now())
+
+  item InventoryItem @relation(fields: [itemId], references: [id])
+
+  @@index([itemId])
+}
+
+model PurchaseOrder {
+  id        String   @id @default(cuid())
+  supplierId String
+  status    String   @default("PENDING") // PENDING, APPROVED, ORDERED, DELIVERED, CANCELLED
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  supplier Supplier            @relation(fields: [supplierId], references: [id])
+  items    PurchaseOrderItem[]
+
+  @@index([supplierId])
+}
+
+model PurchaseOrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  itemId    String
+  quantity  Int
+  unitPrice Float
+
+  order PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  item  InventoryItem @relation(fields: [itemId], references: [id])
+
+  @@index([orderId])
+}
+
+model Attendance {
+  id        String   @id @default(cuid())
+  staffId   String
+  date      DateTime
+  checkIn   DateTime?
+  checkOut  DateTime?
+  status    String   @default("PRESENT") // PRESENT, ABSENT, LATE, LEAVE, HALF_DAY
+  notes     String?
+  createdAt DateTime @default(now())
+
+  staff Staff @relation(fields: [staffId], references: [id])
+
+  @@index([staffId])
+  @@index([date])
+}
+
+model Salary {
+  id         String    @id @default(cuid())
+  staffId    String
+  month      Int
+  year       Int
+  baseSalary Float
+  deductions Float     @default(0)
+  bonuses    Float     @default(0)
+  netSalary  Float
+  status     String    @default("PENDING") // PENDING, PAID
+  paidDate   DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  staff Staff @relation(fields: [staffId], references: [id])
+
+  @@unique([staffId, month, year])
+  @@index([staffId])
+}
+
+model DutyRoster {
+  id       String   @id @default(cuid())
+  staffId  String
+  date     DateTime
+  shift    String   // MORNING, AFTERNOON, NIGHT
+  isOnCall Boolean  @default(false)
+  notes    String?
+  createdAt DateTime @default(now())
+
+  staff Staff @relation(fields: [staffId], references: [id])
+
+  @@index([staffId])
+  @@index([date])
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  patientId String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([patientId])
+}
+
+model DoctorSchedule {
+  id               String   @id @default(cuid())
+  staffId          String
+  dayOfWeek        Int      // 0=Sunday, 1=Monday, ..., 6=Saturday
+  startTime        String   // HH:mm format e.g. "09:00"
+  endTime          String   // HH:mm format e.g. "17:00"
+  slotDuration     Int      @default(30) // minutes per appointment slot
+  maxPatients      Int      @default(1) // max patients per time slot
+  isAvailable      Boolean  @default(true)
+  breakStart       String?  // break start time
+  breakEnd         String?  // break end time
+  consultationFee  Float    @default(0)
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  doctor Staff @relation(fields: [staffId], references: [id])
+
+  @@unique([staffId, dayOfWeek])
+  @@index([staffId])
+}
