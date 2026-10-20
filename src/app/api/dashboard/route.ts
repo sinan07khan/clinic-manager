@@ -149,8 +149,16 @@ export async function GET() {
           UNION ALL
           SELECT date(d, '+1 day') FROM dates WHERE d < date('now')
         )
-        SELECT 
-          strftime('%a', dates.d) as day,
+        SELECT
+          CASE cast(strftime('%w', dates.d) as integer)
+            WHEN 0 THEN 'Sun'
+            WHEN 1 THEN 'Mon'
+            WHEN 2 THEN 'Tue'
+            WHEN 3 THEN 'Wed'
+            WHEN 4 THEN 'Thu'
+            WHEN 5 THEN 'Fri'
+            WHEN 6 THEN 'Sat'
+          END as day,
           COALESCE(SUM(p.amount), 0) as revenue
         FROM dates
         LEFT JOIN Payment p ON date(p.createdAt) = dates.d

@@ -325,7 +325,13 @@ export default function PatientsModule() {
       const res = await fetch(`/api/patients/${patient.id}`)
       const data = await res.json()
       if (res.ok) {
-        setSelectedPatient(data)
+        setSelectedPatient({
+          ...data,
+          appointments: data.appointments ?? [],
+          prescriptions: data.prescriptions ?? [],
+          labReports: data.labReports ?? [],
+          invoices: data.invoices ?? [],
+        })
       } else {
         toast({ title: 'Error', description: data.error, variant: 'destructive' })
       }

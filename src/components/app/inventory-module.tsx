@@ -341,7 +341,10 @@ export default function InventoryModule() {
     setShowSupplierDetail(supplier)
     try {
       const res = await fetch(`/api/suppliers/${supplier.id}`)
-      if (res.ok) setSupplierDetailData(await res.json())
+      if (res.ok) {
+        const detailData = await res.json()
+        setSupplierDetailData({ ...detailData, items: detailData.items ?? [], purchaseOrders: detailData.purchaseOrders ?? [] })
+      }
     } catch { /* silent */ }
   }
 

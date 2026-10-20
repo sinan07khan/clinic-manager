@@ -368,7 +368,16 @@ export default function Analytics() {
         if (res.ok) {
           const json = await res.json()
           if (json.data) {
-            setApiData(json.data)
+            setApiData({
+              financialSummary: json.data.financialSummary ?? { totalRevenue: 0, totalExpenses: 0, netProfit: 0, profitMargin: 0 },
+              revenueByDay: json.data.revenueByDay ?? [],
+              revenueByService: json.data.revenueByService ?? [],
+              monthlyRevenue: json.data.monthlyRevenue ?? [],
+              patientVisitTrend: json.data.patientVisitTrend ?? [],
+              patientDemographics: json.data.patientDemographics ?? [],
+              doctorPerformance: json.data.doctorPerformance ?? [],
+              diagnosticTests: json.data.diagnosticTests ?? [],
+            })
           }
         }
       } catch {
@@ -839,7 +848,7 @@ export default function Analytics() {
                 </Card>
                 <Card className="bg-card rounded-xl border shadow-sm">
                   <CardContent className="p-6 text-center">
-                    <p className="text-2xl font-bold">{formatBDTFull(Math.round(data.diagnosticTests.reduce((a, b) => a + b.revenue, 0) / data.diagnosticTests.reduce((a, b) => a + b.count, 0)))}</p>
+                    <p className="text-2xl font-bold">{formatBDTFull(Math.round(data.diagnosticTests.reduce((a, b) => a + b.revenue, 0) / (data.diagnosticTests.reduce((a, b) => a + b.count, 0) || 1)))}</p>
                     <p className="text-sm text-muted-foreground mt-1">Average Revenue per Test</p>
                   </CardContent>
                 </Card>

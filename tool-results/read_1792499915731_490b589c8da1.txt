@@ -1,0 +1,2002 @@
+     1→     1→"use client"
+     2→     2→
+     3→     3→import React, { useState, useEffect, useCallback } from "react"
+     4→     4→import {
+     5→     5→  format,
+     6→     6→  addDays,
+     7→     7→  subDays,
+     8→     8→  startOfWeek,
+     9→     9→  endOfWeek,
+    10→    10→  getDay,
+    11→    11→} from "date-fns"
+    12→    12→import {
+    13→    13→  Users,
+    14→    14→  Calendar,
+    15→    15→  DollarSign,
+    16→    16→  Clock,
+    17→    17→  Plus,
+    18→    18→  Search,
+    19→    19→  Filter,
+    20→    20→  Edit2,
+    21→    21→  Trash2,
+    22→    22→  ChevronLeft,
+    23→    23→  ChevronRight,
+    24→    24→  CheckCircle2,
+    25→    25→  XCircle,
+    26→    26→  AlertCircle,
+    27→    27→  UserCheck,
+    28→    28→  UserX,
+    29→    29→  Eye,
+    30→    30→  Banknote,
+    31→    31→  Phone,
+    32→    32→  Mail,
+    33→    33→  Stethoscope,
+    34→    34→  ClipboardList,
+    35→    35→  MoreHorizontal,
+    36→    36→} from "lucide-react"
+    37→    37→import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+    38→    38→import {
+    39→    39→  Table,
+    40→    40→  TableHeader,
+    41→    41→  TableBody,
+    42→    42→  TableRow,
+    43→    43→  TableHead,
+    44→    44→  TableCell,
+    45→    45→} from "@/components/ui/table"
+    46→    46→import {
+    47→    47→  Dialog,
+    48→    48→  DialogContent,
+    49→    49→  DialogHeader,
+    50→    50→  DialogTitle,
+    51→    51→  DialogDescription,
+    52→    52→  DialogFooter,
+    53→    53→} from "@/components/ui/dialog"
+    54→    54→import {
+    55→    55→  Select,
+    56→    56→  SelectContent,
+    57→    57→  SelectItem,
+    58→    58→  SelectTrigger,
+    59→    59→  SelectValue,
+    60→    60→} from "@/components/ui/select"
+    61→    61→import { Button } from "@/components/ui/button"
+    62→    62→import { Input } from "@/components/ui/input"
+    63→    63→import { Label } from "@/components/ui/label"
+    64→    64→import { Badge } from "@/components/ui/badge"
+    65→    65→import { Switch } from "@/components/ui/switch"
+    66→    66→import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+    67→    67→import { Textarea } from "@/components/ui/textarea"
+    68→    68→import {
+    69→    69→  DropdownMenu,
+    70→    70→  DropdownMenuContent,
+    71→    71→  DropdownMenuItem,
+    72→    72→  DropdownMenuTrigger,
+    73→    73→} from "@/components/ui/dropdown-menu"
+    74→    74→import { toast } from "sonner"
+    75→    75→
+    76→    76→// ─── Types ──────────────────────────────────────────────────────────────────
+    77→    77→
+    78→    78→interface StaffMember {
+    79→    79→  id: string
+    80→    80→  name: string
+    81→    81→  email: string
+    82→    82→  phone: string
+    83→    83→  role: string
+    84→    84→  department: string | null
+    85→    85→  specialization: string | null
+    86→    86→  isActive: boolean
+    87→    87→  createdAt: string
+    88→    88→  _count: { attendance: number; salary: number; duties: number }
+    89→    89→}
+    90→    90→
+    91→    91→interface AttendanceRecord {
+    92→    92→  id: string
+    93→    93→  staffId: string
+    94→    94→  date: string
+    95→    95→  checkIn: string | null
+    96→    96→  checkOut: string | null
+    97→    97→  status: string
+    98→    98→  notes: string | null
+    99→    99→  staff: { id: string; name: string; role: string; department: string | null }
+   100→   100→}
+   101→   101→
+   102→   102→interface SalaryRecord {
+   103→   103→  id: string
+   104→   104→  staffId: string
+   105→   105→  month: number
+   106→   106→  year: number
+   107→   107→  baseSalary: number
+   108→   108→  deductions: number
+   109→   109→  bonuses: number
+   110→   110→  netSalary: number
+   111→   111→  status: string
+   112→   112→  paidDate: string | null
+   113→   113→  createdAt: string
+   114→   114→  staff: { id: string; name: string; role: string; department: string | null }
+   115→   115→}
+   116→   116→
+   117→   117→interface DutyAssignment {
+   118→   118→  id: string
+   119→   119→  staffId: string
+   120→   120→  date: string
+   121→   121→  shift: string
+   122→   122→  isOnCall: boolean
+   123→   123→  notes: string | null
+   124→   124→  staff: { id: string; name: string; role: string; department: string | null }
+   125→   125→}
+   126→   126→
+   127→   127→// ─── Constants ──────────────────────────────────────────────────────────────
+   128→   128→
+   129→   129→const ROLES = [
+   130→   130→  "SUPER_ADMIN",
+   131→   131→  "ADMIN",
+   132→   132→  "HR_MANAGER",
+   133→   133→  "DOCTOR",
+   134→   134→  "ACCOUNTANT",
+   135→   135→  "NURSE",
+   136→   136→  "LAB_TECHNICIAN",
+   137→   137→  "RECEPTIONIST",
+   138→   138→  "INVENTORY_MANAGER",
+   139→   139→  "STAFF",
+   140→   140→]
+   141→   141→
+   142→   142→const DEPARTMENTS = [
+   143→   143→  "General Medicine",
+   144→   144→  "Surgery",
+   145→   145→  "Pediatrics",
+   146→   146→  "Gynecology",
+   147→   147→  "Orthopedics",
+   148→   148→  "Cardiology",
+   149→   149→  "Neurology",
+   150→   150→  "Dermatology",
+   151→   151→  "ENT",
+   152→   152→  "Ophthalmology",
+   153→   153→  "Radiology",
+   154→   154→  "Pathology",
+   155→   155→  "Laboratory",
+   156→   156→  "Administration",
+   157→   157→  "Accounts",
+   158→   158→  "Reception",
+   159→   159→  "Inventory",
+   160→   160→]
+   161→   161→
+   162→   162→const ROLE_COLORS: Record<string, string> = {
+   163→   163→  SUPER_ADMIN: "bg-red-100 text-red-800 border-red-200",
+   164→   164→  ADMIN: "bg-purple-100 text-purple-800 border-purple-200",
+   165→   165→  HR_MANAGER: "bg-indigo-100 text-indigo-800 border-indigo-200",
+   166→   166→  DOCTOR: "bg-green-100 text-green-900 border-green-200",
+   167→   167→  NURSE: "bg-pink-100 text-pink-800 border-pink-200",
+   168→   168→  LAB_TECHNICIAN: "bg-blue-100 text-blue-800 border-blue-200",
+   169→   169→  RECEPTIONIST: "bg-amber-100 text-amber-800 border-amber-200",
+   170→   170→  ACCOUNTANT: "bg-cyan-100 text-cyan-800 border-cyan-200",
+   171→   171→  INVENTORY_MANAGER: "bg-orange-100 text-orange-800 border-orange-200",
+   172→   172→  STAFF: "bg-gray-100 text-gray-800 border-gray-200",
+   173→   173→}
+   174→   174→
+   175→   175→const ROLE_LABELS: Record<string, string> = {
+   176→   176→  SUPER_ADMIN: "Super Admin",
+   177→   177→  ADMIN: "Admin",
+   178→   178→  HR_MANAGER: "HR Manager",
+   179→   179→  DOCTOR: "Doctor",
+   180→   180→  NURSE: "Nurse",
+   181→   181→  LAB_TECHNICIAN: "Lab Tech",
+   182→   182→  RECEPTIONIST: "Receptionist",
+   183→   183→  ACCOUNTANT: "Accountant",
+   184→   184→  INVENTORY_MANAGER: "Inventory Mgr",
+   185→   185→  STAFF: "Staff",
+   186→   186→}
+   187→   187→
+   188→   188→const ATTENDANCE_COLORS: Record<string, string> = {
+   189→   189→  PRESENT: "bg-green-100 text-green-800 border-green-200",
+   190→   190→  ABSENT: "bg-red-100 text-red-800 border-red-200",
+   191→   191→  LATE: "bg-orange-100 text-orange-800 border-orange-200",
+   192→   192→  LEAVE: "bg-blue-100 text-blue-800 border-blue-200",
+   193→   193→  HALF_DAY: "bg-yellow-100 text-yellow-800 border-yellow-200",
+   194→   194→}
+   195→   195→
+   196→   196→const SHIFT_COLORS: Record<string, string> = {
+   197→   197→  MORNING: "bg-yellow-100 text-yellow-800 border-yellow-300",
+   198→   198→  AFTERNOON: "bg-orange-100 text-orange-800 border-orange-300",
+   199→   199→  NIGHT: "bg-purple-100 text-purple-800 border-purple-300",
+   200→   200→}
+   201→   201→
+   202→   202→const MONTHS = [
+   203→   203→  "January",
+   204→   204→  "February",
+   205→   205→  "March",
+   206→   206→  "April",
+   207→   207→  "May",
+   208→   208→  "June",
+   209→   209→  "July",
+   210→   210→  "August",
+   211→   211→  "September",
+   212→   212→  "October",
+   213→   213→  "November",
+   214→   214→  "December",
+   215→   215→]
+   216→   216→
+   217→   217→const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+   218→   218→
+   219→   219→// ─── Helper ─────────────────────────────────────────────────────────────────
+   220→   220→
+   221→   221→function formatCurrency(amount: number): string {
+   222→   222→  return `৳${amount.toLocaleString("en-BD", { minimumFractionDigits: 0 })}`
+   223→   223→}
+   224→   224→
+   225→   225→function formatTime(dateStr: string | null): string {
+   226→   226→  if (!dateStr) return "—"
+   227→   227→  return format(new Date(dateStr), "hh:mm a")
+   228→   228→}
+   229→   229→
+   230→   230→function RoleBadge({ role }: { role: string }) {
+   231→   231→  return (
+   232→   232→    <Badge
+   233→   233→      variant="outline"
+   234→   234→      className={ROLE_COLORS[role] || "bg-gray-100 text-gray-800"}
+   235→   235→    >
+   236→   236→      {ROLE_LABELS[role] || role}
+   237→   237→    </Badge>
+   238→   238→  )
+   239→   239→}
+   240→   240→
+   241→   241→function StatusBadge({ status, type }: { status: string; type: "attendance" | "salary" }) {
+   242→   242→  if (type === "attendance") {
+   243→   243→    return (
+   244→   244→      <Badge variant="outline" className={ATTENDANCE_COLORS[status] || ""}>
+   245→   245→        {status}
+   246→   246→      </Badge>
+   247→   247→    )
+   248→   248→  }
+   249→   249→  return (
+   250→   250→    <Badge
+   251→   251→      variant="outline"
+   252→   252→      className={
+   253→   253→        status === "PAID"
+   254→   254→          ? "bg-green-100 text-green-800 border-green-200"
+   255→   255→          : "bg-yellow-100 text-yellow-800 border-yellow-200"
+   256→   256→      }
+   257→   257→    >
+   258→   258→      {status}
+   259→   259→    </Badge>
+   260→   260→  )
+   261→   261→}
+   262→   262→
+   263→   263→// ═══════════════════════════════════════════════════════════════════════════════
+   264→   264→// STAFF DIRECTORY TAB
+   265→   265→// ═══════════════════════════════════════════════════════════════════════════════
+   266→   266→
+   267→   267→function StaffDirectory() {
+   268→   268→  const [staff, setStaff] = useState<StaffMember[]>([])
+   269→   269→  const [loading, setLoading] = useState(true)
+   270→   270→  const [search, setSearch] = useState("")
+   271→   271→  const [filterRole, setFilterRole] = useState("")
+   272→   272→  const [filterDept, setFilterDept] = useState("")
+   273→   273→  const [filterActive, setFilterActive] = useState("")
+   274→   274→
+   275→   275→  // Dialog states
+   276→   276→  const [showAddDialog, setShowAddDialog] = useState(false)
+   277→   277→  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null)
+   278→   278→
+   279→   279→  // Form state
+   280→   280→  const [formName, setFormName] = useState("")
+   281→   281→  const [formEmail, setFormEmail] = useState("")
+   282→   282→  const [formPhone, setFormPhone] = useState("")
+   283→   283→  const [formRole, setFormRole] = useState("STAFF")
+   284→   284→  const [formDept, setFormDept] = useState("")
+   285→   285→  const [formSpec, setFormSpec] = useState("")
+   286→   286→  const [formActive, setFormActive] = useState(true)
+   287→   287→  const [submitting, setSubmitting] = useState(false)
+   288→   288→
+   289→   289→  const fetchStaff = useCallback(async () => {
+   290→   290→    setLoading(true)
+   291→   291→    try {
+   292→   292→      const params = new URLSearchParams()
+   293→   293→      if (search) params.set("search", search)
+   294→   294→      if (filterRole) params.set("role", filterRole)
+   295→   295→      if (filterDept) params.set("department", filterDept)
+   296→   296→      if (filterActive) params.set("isActive", filterActive)
+   297→   297→
+   298→   298→      const res = await fetch(`/api/staff?${params.toString()}`)
+   299→   299→      if (res.ok) {
+   300→   300→        const data = await res.json()
+   301→   301→        setStaff(data)
+   302→   302→      }
+   303→   303→    } catch (err) {
+   304→   304→      console.error(err)
+   305→   305→    } finally {
+   306→   306→      setLoading(false)
+   307→   307→    }
+   308→   308→  }, [search, filterRole, filterDept, filterActive])
+   309→   309→
+   310→   310→  useEffect(() => {
+   311→   311→    fetchStaff()
+   312→   312→  }, [fetchStaff])
+   313→   313→
+   314→   314→  const resetForm = () => {
+   315→   315→    setFormName("")
+   316→   316→    setFormEmail("")
+   317→   317→    setFormPhone("")
+   318→   318→    setFormRole("STAFF")
+   319→   319→    setFormDept("")
+   320→   320→    setFormSpec("")
+   321→   321→    setFormActive(true)
+   322→   322→    setEditingStaff(null)
+   323→   323→  }
+   324→   324→
+   325→   325→  const openAdd = () => {
+   326→   326→    resetForm()
+   327→   327→    setShowAddDialog(true)
+   328→   328→  }
+   329→   329→
+   330→   330→  const openEdit = (s: StaffMember) => {
+   331→   331→    setEditingStaff(s)
+   332→   332→    setFormName(s.name)
+   333→   333→    setFormEmail(s.email)
+   334→   334→    setFormPhone(s.phone)
+   335→   335→    setFormRole(s.role)
+   336→   336→    setFormDept(s.department || "")
+   337→   337→    setFormSpec(s.specialization || "")
+   338→   338→    setFormActive(s.isActive)
+   339→   339→    setShowAddDialog(true)
+   340→   340→  }
+   341→   341→
+   342→   342→  const handleSubmit = async () => {
+   343→   343→    if (!formName || !formEmail || !formPhone) {
+   344→   344→      toast.error("Name, email, and phone are required")
+   345→   345→      return
+   346→   346→    }
+   347→   347→    setSubmitting(true)
+   348→   348→    try {
+   349→   349→      const url = editingStaff ? `/api/staff/${editingStaff.id}` : "/api/staff"
+   350→   350→      const method = editingStaff ? "PUT" : "POST"
+   351→   351→      const body = {
+   352→   352→        name: formName,
+   353→   353→        email: formEmail,
+   354→   354→        phone: formPhone,
+   355→   355→        role: formRole,
+   356→   356→        department: formDept || null,
+   357→   357→        specialization: formSpec || null,
+   358→   358→        isActive: formActive,
+   359→   359→      }
+   360→   360→
+   361→   361→      const res = await fetch(url, {
+   362→   362→        method,
+   363→   363→        headers: { "Content-Type": "application/json" },
+   364→   364→        body: JSON.stringify(body),
+   365→   365→      })
+   366→   366→
+   367→   367→      if (res.ok) {
+   368→   368→        toast.success(editingStaff ? "Staff updated successfully" : "Staff added successfully")
+   369→   369→        setShowAddDialog(false)
+   370→   370→        resetForm()
+   371→   371→        fetchStaff()
+   372→   372→      } else {
+   373→   373→        const data = await res.json()
+   374→   374→        toast.error(data.error || "Operation failed")
+   375→   375→      }
+   376→   376→    } catch (err) {
+   377→   377→      toast.error("An error occurred")
+   378→   378→    } finally {
+   379→   379→      setSubmitting(false)
+   380→   380→    }
+   381→   381→  }
+   382→   382→
+   383→   383→  const handleToggleActive = async (s: StaffMember) => {
+   384→   384→    try {
+   385→   385→      const res = await fetch(`/api/staff/${s.id}`, {
+   386→   386→        method: "PUT",
+   387→   387→        headers: { "Content-Type": "application/json" },
+   388→   388→        body: JSON.stringify({ isActive: !s.isActive }),
+   389→   389→      })
+   390→   390→      if (res.ok) {
+   391→   391→        toast.success(`Staff ${s.isActive ? "deactivated" : "activated"}`)
+   392→   392→        fetchStaff()
+   393→   393→      }
+   394→   394→    } catch (err) {
+   395→   395→      toast.error("Failed to update staff status")
+   396→   396→    }
+   397→   397→  }
+   398→   398→
+   399→   399→  const handleDelete = async (s: StaffMember) => {
+   400→   400→    if (!confirm(`Are you sure you want to deactivate ${s.name}?`)) return
+   401→   401→    try {
+   402→   402→      const res = await fetch(`/api/staff/${s.id}`, { method: "DELETE" })
+   403→   403→      if (res.ok) {
+   404→   404→        toast.success("Staff deactivated")
+   405→   405→        fetchStaff()
+   406→   406→      }
+   407→   407→    } catch (err) {
+   408→   408→      toast.error("Failed to deactivate staff")
+   409→   409→    }
+   410→   410→  }
+   411→   411→
+   412→   412→  // Role count summary
+   413→   413→  const roleCounts = staff.reduce<Record<string, number>>((acc, s) => {
+   414→   414→    acc[s.role] = (acc[s.role] || 0) + 1
+   415→   415→    return acc
+   416→   416→  }, {})
+   417→   417→
+   418→   418→  const activeCount = staff.filter((s) => s.isActive).length
+   419→   419→  const inactiveCount = staff.length - activeCount
+   420→   420→
+   421→   421→  return (
+   422→   422→    <div className="space-y-6">
+   423→   423→      {/* Summary Cards */}
+   424→   424→      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+   425→   425→        <Card className="border-green-200 bg-green-50/50">
+   426→   426→          <CardContent className="p-4">
+   427→   427→            <div className="flex items-center gap-2">
+   428→   428→              <Users className="h-4 w-4 text-green-700" />
+   429→   429→              <span className="text-sm text-green-800">Total Staff</span>
+   430→   430→            </div>
+   431→   431→            <p className="mt-1 text-2xl font-bold text-green-950">{staff.length}</p>
+   432→   432→          </CardContent>
+   433→   433→        </Card>
+   434→   434→        <Card className="border-green-200 bg-green-50/50">
+   435→   435→          <CardContent className="p-4">
+   436→   436→            <div className="flex items-center gap-2">
+   437→   437→              <UserCheck className="h-4 w-4 text-green-600" />
+   438→   438→              <span className="text-sm text-green-700">Active</span>
+   439→   439→            </div>
+   440→   440→            <p className="mt-1 text-2xl font-bold text-green-900">{activeCount}</p>
+   441→   441→          </CardContent>
+   442→   442→        </Card>
+   443→   443→        <Card className="border-red-200 bg-red-50/50">
+   444→   444→          <CardContent className="p-4">
+   445→   445→            <div className="flex items-center gap-2">
+   446→   446→              <UserX className="h-4 w-4 text-red-600" />
+   447→   447→              <span className="text-sm text-red-700">Inactive</span>
+   448→   448→            </div>
+   449→   449→            <p className="mt-1 text-2xl font-bold text-red-900">{inactiveCount}</p>
+   450→   450→          </CardContent>
+   451→   451→        </Card>
+   452→   452→        <Card className="border-green-200 bg-green-50/50">
+   453→   453→          <CardContent className="p-4">
+   454→   454→            <div className="flex items-center gap-2">
+   455→   455→              <Stethoscope className="h-4 w-4 text-green-700" />
+   456→   456→              <span className="text-sm text-green-800">Doctors</span>
+   457→   457→            </div>
+   458→   458→            <p className="mt-1 text-2xl font-bold text-green-950">{roleCounts.DOCTOR || 0}</p>
+   459→   459→          </CardContent>
+   460→   460→        </Card>
+   461→   461→        <Card className="border-pink-200 bg-pink-50/50">
+   462→   462→          <CardContent className="p-4">
+   463→   463→            <div className="flex items-center gap-2">
+   464→   464→              <ClipboardList className="h-4 w-4 text-pink-600" />
+   465→   465→              <span className="text-sm text-pink-700">Nurses</span>
+   466→   466→            </div>
+   467→   467→            <p className="mt-1 text-2xl font-bold text-pink-900">{roleCounts.NURSE || 0}</p>
+   468→   468→          </CardContent>
+   469→   469→        </Card>
+   470→   470→      </div>
+   471→   471→
+   472→   472→      {/* Filters & Actions */}
+   473→   473→      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+   474→   474→        <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+   475→   475→          <div className="relative flex-1 sm:max-w-xs">
+   476→   476→            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+   477→   477→            <Input
+   478→   478→              placeholder="Search by name..."
+   479→   479→              value={search}
+   480→   480→              onChange={(e) => setSearch(e.target.value)}
+   481→   481→              className="pl-9"
+   482→   482→            />
+   483→   483→          </div>
+   484→   484→          <Select value={filterRole} onValueChange={(v) => setFilterRole(v === "ALL" ? "" : v)}>
+   485→   485→            <SelectTrigger className="w-full sm:w-[160px]">
+   486→   486→              <SelectValue placeholder="All Roles" />
+   487→   487→            </SelectTrigger>
+   488→   488→            <SelectContent>
+   489→   489→              <SelectItem value="ALL">All Roles</SelectItem>
+   490→   490→              {ROLES.map((r) => (
+   491→   491→                <SelectItem key={r} value={r}>
+   492→   492→                  {ROLE_LABELS[r]}
+   493→   493→                </SelectItem>
+   494→   494→              ))}
+   495→   495→            </SelectContent>
+   496→   496→          </Select>
+   497→   497→          <Select
+   498→   498→            value={filterDept}
+   499→   499→            onValueChange={(v) => setFilterDept(v === "ALL" ? "" : v)}
+   500→   500→          >
+   501→   501→            <SelectTrigger className="w-full sm:w-[180px]">
+   502→   502→              <SelectValue placeholder="All Departments" />
+   503→   503→            </SelectTrigger>
+   504→   504→            <SelectContent>
+   505→   505→              <SelectItem value="ALL">All Departments</SelectItem>
+   506→   506→              {DEPARTMENTS.map((d) => (
+   507→   507→                <SelectItem key={d} value={d}>
+   508→   508→                  {d}
+   509→   509→                </SelectItem>
+   510→   510→              ))}
+   511→   511→            </SelectContent>
+   512→   512→          </Select>
+   513→   513→          <Select
+   514→   514→            value={filterActive}
+   515→   515→            onValueChange={(v) => setFilterActive(v === "ALL" ? "" : v)}
+   516→   516→          >
+   517→   517→            <SelectTrigger className="w-full sm:w-[130px]">
+   518→   518→              <SelectValue placeholder="Status" />
+   519→   519→            </SelectTrigger>
+   520→   520→            <SelectContent>
+   521→   521→              <SelectItem value="ALL">All</SelectItem>
+   522→   522→              <SelectItem value="true">Active</SelectItem>
+   523→   523→              <SelectItem value="false">Inactive</SelectItem>
+   524→   524→            </SelectContent>
+   525→   525→          </Select>
+   526→   526→        </div>
+   527→   527→        <Button onClick={openAdd} className="bg-green-700 hover:bg-green-800">
+   528→   528→          <Plus className="mr-2 h-4 w-4" />
+   529→   529→          Add Staff
+   530→   530→        </Button>
+   531→   531→      </div>
+   532→   532→
+   533→   533→      {/* Staff Table */}
+   534→   534→      <Card>
+   535→   535→        <CardContent className="p-0">
+   536→   536→          <div className="max-h-[520px] overflow-y-auto overflow-x-auto">
+   537→   537→            <Table>
+   538→   538→              <TableHeader>
+   539→   539→                <TableRow className="bg-muted/50">
+   540→   540→                  <TableHead className="whitespace-nowrap font-semibold">Name</TableHead>
+   541→   541→                  <TableHead className="whitespace-nowrap font-semibold hidden sm:table-cell">Email</TableHead>
+   542→   542→                  <TableHead className="whitespace-nowrap font-semibold hidden md:table-cell">Phone</TableHead>
+   543→   543→                  <TableHead className="whitespace-nowrap font-semibold">Role</TableHead>
+   544→   544→                  <TableHead className="whitespace-nowrap font-semibold hidden lg:table-cell">Department</TableHead>
+   545→   545→                  <TableHead className="whitespace-nowrap font-semibold hidden sm:table-cell">Status</TableHead>
+   546→   546→                  <TableHead className="font-semibold text-right">Actions</TableHead>
+   547→   547→                </TableRow>
+   548→   548→              </TableHeader>
+   549→   549→              <TableBody>
+   550→   550→                {loading ? (
+   551→   551→                  <TableRow>
+   552→   552→                    <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+   553→   553→                      Loading...
+   554→   554→                    </TableCell>
+   555→   555→                  </TableRow>
+   556→   556→                ) : staff.length === 0 ? (
+   557→   557→                  <TableRow>
+   558→   558→                    <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+   559→   559→                      No staff found
+   560→   560→                    </TableCell>
+   561→   561→                  </TableRow>
+   562→   562→                ) : (
+   563→   563→                  staff.map((s) => (
+   564→   564→                    <TableRow key={s.id}>
+   565→   565→                      <TableCell className="font-medium">{s.name}</TableCell>
+   566→   566→                      <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground hidden sm:table-cell">
+   567→   567→                        {s.email}
+   568→   568→                      </TableCell>
+   569→   569→                      <TableCell className="text-sm hidden md:table-cell">{s.phone}</TableCell>
+   570→   570→                      <TableCell>
+   571→   571→                        <RoleBadge role={s.role} />
+   572→   572→                      </TableCell>
+   573→   573→                      <TableCell className="text-sm hidden lg:table-cell">{s.department || "—"}</TableCell>
+   574→   574→                      <TableCell className="hidden sm:table-cell">
+   575→   575→                        <Badge
+   576→   576→                          variant="outline"
+   577→   577→                          className={
+   578→   578→                            s.isActive
+   579→   579→                              ? "bg-green-100 text-green-800 border-green-200"
+   580→   580→                              : "bg-red-100 text-red-800 border-red-200"
+   581→   581→                          }
+   582→   582→                        >
+   583→   583→                          {s.isActive ? "Active" : "Inactive"}
+   584→   584→                        </Badge>
+   585→   585→                      </TableCell>
+   586→   586→                      <TableCell className="text-right">
+   587→   587→                        <DropdownMenu>
+   588→   588→                          <DropdownMenuTrigger asChild>
+   589→   589→                            <Button variant="ghost" size="sm">
+   590→   590→                              <MoreHorizontal className="h-4 w-4" />
+   591→   591→                            </Button>
+   592→   592→                          </DropdownMenuTrigger>
+   593→   593→                          <DropdownMenuContent align="end">
+   594→   594→                            <DropdownMenuItem onClick={() => openEdit(s)}>
+   595→   595→                              <Edit2 className="mr-2 h-4 w-4" />
+   596→   596→                              Edit
+   597→   597→                            </DropdownMenuItem>
+   598→   598→                            <DropdownMenuItem onClick={() => handleToggleActive(s)}>
+   599→   599→                              {s.isActive ? (
+   600→   600→                                <>
+   601→   601→                                  <XCircle className="mr-2 h-4 w-4" />
+   602→   602→                                  Deactivate
+   603→   603→                                </>
+   604→   604→                              ) : (
+   605→   605→                                <>
+   606→   606→                                  <CheckCircle2 className="mr-2 h-4 w-4" />
+   607→   607→                                  Activate
+   608→   608→                                </>
+   609→   609→                              )}
+   610→   610→                            </DropdownMenuItem>
+   611→   611→                            <DropdownMenuItem
+   612→   612→                              onClick={() => handleDelete(s)}
+   613→   613→                              className="text-red-600"
+   614→   614→                            >
+   615→   615→                              <Trash2 className="mr-2 h-4 w-4" />
+   616→   616→                              Deactivate
+   617→   617→                            </DropdownMenuItem>
+   618→   618→                          </DropdownMenuContent>
+   619→   619→                        </DropdownMenu>
+   620→   620→                      </TableCell>
+   621→   621→                    </TableRow>
+   622→   622→                  ))
+   623→   623→                )}
+   624→   624→              </TableBody>
+   625→   625→            </Table>
+   626→   626→          </div>
+   627→   627→        </CardContent>
+   628→   628→      </Card>
+   629→   629→
+   630→   630→      {/* Add/Edit Staff Dialog */}
+   631→   631→      <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) resetForm() }}>
+   632→   632→        <DialogContent className="sm:max-w-lg">
+   633→   633→          <DialogHeader>
+   634→   634→            <DialogTitle>{editingStaff ? "Edit Staff Member" : "Add New Staff Member"}</DialogTitle>
+   635→   635→            <DialogDescription>
+   636→   636→              {editingStaff
+   637→   637→                ? "Update staff member information"
+   638→   638→                : "Fill in the details to add a new staff member"}
+   639→   639→            </DialogDescription>
+   640→   640→          </DialogHeader>
+   641→   641→          <div className="grid gap-4 py-2">
+   642→   642→            <div className="grid gap-2">
+   643→   643→              <Label htmlFor="name">Full Name *</Label>
+   644→   644→              <Input
+   645→   645→                id="name"
+   646→   646→                placeholder="Enter full name"
+   647→   647→                value={formName}
+   648→   648→                onChange={(e) => setFormName(e.target.value)}
+   649→   649→              />
+   650→   650→            </div>
+   651→   651→            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+   652→   652→              <div className="grid gap-2">
+   653→   653→                <Label htmlFor="email">Email *</Label>
+   654→   654→                <Input
+   655→   655→                  id="email"
+   656→   656→                  type="email"
+   657→   657→                  placeholder="name@example.com"
+   658→   658→                  value={formEmail}
+   659→   659→                  onChange={(e) => setFormEmail(e.target.value)}
+   660→   660→                />
+   661→   661→              </div>
+   662→   662→              <div className="grid gap-2">
+   663→   663→                <Label htmlFor="phone">Phone *</Label>
+   664→   664→                <Input
+   665→   665→                  id="phone"
+   666→   666→                  placeholder="01XXXXXXXXX"
+   667→   667→                  value={formPhone}
+   668→   668→                  onChange={(e) => setFormPhone(e.target.value)}
+   669→   669→                />
+   670→   670→              </div>
+   671→   671→            </div>
+   672→   672→            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+   673→   673→              <div className="grid gap-2">
+   674→   674→                <Label>Role</Label>
+   675→   675→                <Select value={formRole} onValueChange={setFormRole}>
+   676→   676→                  <SelectTrigger className="w-full">
+   677→   677→                    <SelectValue />
+   678→   678→                  </SelectTrigger>
+   679→   679→                  <SelectContent>
+   680→   680→                    {ROLES.map((r) => (
+   681→   681→                      <SelectItem key={r} value={r}>
+   682→   682→                        {ROLE_LABELS[r]}
+   683→   683→                      </SelectItem>
+   684→   684→                    ))}
+   685→   685→                  </SelectContent>
+   686→   686→                </Select>
+   687→   687→              </div>
+   688→   688→              <div className="grid gap-2">
+   689→   689→                <Label>Department</Label>
+   690→   690→                <Select value={formDept} onValueChange={setFormDept}>
+   691→   691→                  <SelectTrigger className="w-full">
+   692→   692→                    <SelectValue placeholder="Select department" />
+   693→   693→                  </SelectTrigger>
+   694→   694→                  <SelectContent>
+   695→   695→                    {DEPARTMENTS.map((d) => (
+   696→   696→                      <SelectItem key={d} value={d}>
+   697→   697→                        {d}
+   698→   698→                      </SelectItem>
+   699→   699→                    ))}
+   700→   700→                  </SelectContent>
+   701→   701→                </Select>
+   702→   702→              </div>
+   703→   703→            </div>
+   704→   704→            <div className="grid gap-2">
+   705→   705→              <Label htmlFor="spec">Specialization</Label>
+   706→   706→              <Input
+   707→   707→                id="spec"
+   708→   708→                placeholder="e.g., Cardiology, Orthopedics..."
+   709→   709→                value={formSpec}
+   710→   710→                onChange={(e) => setFormSpec(e.target.value)}
+   711→   711→              />
+   712→   712→            </div>
+   713→   713→            <div className="flex items-center gap-3">
+   714→   714→              <Switch checked={formActive} onCheckedChange={setFormActive} />
+   715→   715→              <Label>Active</Label>
+   716→   716→            </div>
+   717→   717→          </div>
+   718→   718→          <DialogFooter>
+   719→   719→            <Button variant="outline" onClick={() => { setShowAddDialog(false); resetForm() }}>
+   720→   720→              Cancel
+   721→   721→            </Button>
+   722→   722→            <Button
+   723→   723→              onClick={handleSubmit}
+   724→   724→              disabled={submitting}
+   725→   725→              className="bg-green-700 hover:bg-green-800"
+   726→   726→            >
+   727→   727→              {submitting ? "Saving..." : editingStaff ? "Update" : "Add Staff"}
+   728→   728→            </Button>
+   729→   729→          </DialogFooter>
+   730→   730→        </DialogContent>
+   731→   731→      </Dialog>
+   732→   732→    </div>
+   733→   733→  )
+   734→   734→}
+   735→   735→
+   736→   736→// ═══════════════════════════════════════════════════════════════════════════════
+   737→   737→// ATTENDANCE TAB
+   738→   738→// ═══════════════════════════════════════════════════════════════════════════════
+   739→   739→
+   740→   740→function AttendanceTab() {
+   741→   741→  const [selectedDate, setSelectedDate] = useState(new Date())
+   742→   742→  const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
+   743→   743→  const [allStaff, setAllStaff] = useState<StaffMember[]>([])
+   744→   744→  const [loading, setLoading] = useState(true)
+   745→   745→  const [filterDept, setFilterDept] = useState("")
+   746→   746→  const [filterRole, setFilterRole] = useState("")
+   747→   747→
+   748→   748→  // Dialog
+   749→   749→  const [showRecordDialog, setShowRecordDialog] = useState(false)
+   750→   750→  const [editingAttendance, setEditingAttendance] = useState<AttendanceRecord | null>(null)
+   751→   751→  const [formStaffId, setFormStaffId] = useState("")
+   752→   752→  const [formCheckIn, setFormCheckIn] = useState("")
+   753→   753→  const [formCheckOut, setFormCheckOut] = useState("")
+   754→   754→  const [formStatus, setFormStatus] = useState("PRESENT")
+   755→   755→  const [formNotes, setFormNotes] = useState("")
+   756→   756→  const [submitting, setSubmitting] = useState(false)
+   757→   757→
+   758→   758→  const fetchAttendance = useCallback(async () => {
+   759→   759→    setLoading(true)
+   760→   760→    try {
+   761→   761→      const params = new URLSearchParams()
+   762→   762→      params.set("date", format(selectedDate, "yyyy-MM-dd"))
+   763→   763→      if (filterDept) params.set("department", filterDept)
+   764→   764→      if (filterRole) params.set("role", filterRole)
+   765→   765→
+   766→   766→      const res = await fetch(`/api/attendance?${params.toString()}`)
+   767→   767→      if (res.ok) {
+   768→   768→        const data = await res.json()
+   769→   769→        setAttendance(data)
+   770→   770→      }
+   771→   771→    } catch (err) {
+   772→   772→      console.error(err)
+   773→   773→    } finally {
+   774→   774→      setLoading(false)
+   775→   775→    }
+   776→   776→  }, [selectedDate, filterDept, filterRole])
+   777→   777→
+   778→   778→  const fetchStaff = useCallback(async () => {
+   779→   779→    const res = await fetch("/api/staff?isActive=true")
+   780→   780→    if (res.ok) {
+   781→   781→      const data = await res.json()
+   782→   782→      setAllStaff(data)
+   783→   783→    }
+   784→   784→  }, [])
+   785→   785→
+   786→   786→  useEffect(() => {
+   787→   787→    fetchAttendance()
+   788→   788→    fetchStaff()
+   789→   789→  }, [fetchAttendance, fetchStaff])
+   790→   790→
+   791→   791→  const openRecordDialog = (editRec?: AttendanceRecord) => {
+   792→   792→    if (editRec) {
+   793→   793→      setEditingAttendance(editRec)
+   794→   794→      setFormStaffId(editRec.staffId)
+   795→   795→      setFormCheckIn(
+   796→   796→        editRec.checkIn ? format(new Date(editRec.checkIn), "HH:mm") : ""
+   797→   797→      )
+   798→   798→      setFormCheckOut(
+   799→   799→        editRec.checkOut ? format(new Date(editRec.checkOut), "HH:mm") : ""
+   800→   800→      )
+   801→   801→      setFormStatus(editRec.status)
+   802→   802→      setFormNotes(editRec.notes || "")
+   803→   803→    } else {
+   804→   804→      setEditingAttendance(null)
+   805→   805→      setFormStaffId("")
+   806→   806→      setFormCheckIn(
+   807→   807→        format(new Date(), "HH:mm")
+   808→   808→      )
+   809→   809→      setFormCheckOut("")
+   810→   810→      setFormStatus("PRESENT")
+   811→   811→      setFormNotes("")
+   812→   812→    }
+   813→   813→    setShowRecordDialog(true)
+   814→   814→  }
+   815→   815→
+   816→   816→  const handleSubmitAttendance = async () => {
+   817→   817→    if (!formStaffId) {
+   818→   818→      toast.error("Please select a staff member")
+   819→   819→      return
+   820→   820→    }
+   821→   821→    setSubmitting(true)
+   822→   822→    try {
+   823→   823→      const dateStr = format(selectedDate, "yyyy-MM-dd")
+   824→   824→      const checkInStr = formCheckIn
+   825→   825→        ? `${dateStr}T${formCheckIn}:00`
+   826→   826→        : null
+   827→   827→      const checkOutStr = formCheckOut
+   828→   828→        ? `${dateStr}T${formCheckOut}:00`
+   829→   829→        : null
+   830→   830→
+   831→   831→      if (editingAttendance) {
+   832→   832→        const res = await fetch(`/api/attendance/${editingAttendance.id}`, {
+   833→   833→          method: "PUT",
+   834→   834→          headers: { "Content-Type": "application/json" },
+   835→   835→          body: JSON.stringify({
+   836→   836→            checkIn: checkInStr,
+   837→   837→            checkOut: checkOutStr,
+   838→   838→            status: formStatus,
+   839→   839→            notes: formNotes || null,
+   840→   840→          }),
+   841→   841→        })
+   842→   842→        if (res.ok) {
+   843→   843→          toast.success("Attendance updated")
+   844→   844→          setShowRecordDialog(false)
+   845→   845→          fetchAttendance()
+   846→   846→        } else {
+   847→   847→          const data = await res.json()
+   848→   848→          toast.error(data.error || "Failed to update")
+   849→   849→        }
+   850→   850→      } else {
+   851→   851→        const res = await fetch("/api/attendance", {
+   852→   852→          method: "POST",
+   853→   853→          headers: { "Content-Type": "application/json" },
+   854→   854→          body: JSON.stringify({
+   855→   855→            staffId: formStaffId,
+   856→   856→            date: dateStr,
+   857→   857→            checkIn: checkInStr,
+   858→   858→            checkOut: checkOutStr,
+   859→   859→            status: formStatus,
+   860→   860→            notes: formNotes || null,
+   861→   861→          }),
+   862→   862→        })
+   863→   863→        if (res.ok) {
+   864→   864→          toast.success("Attendance recorded")
+   865→   865→          setShowRecordDialog(false)
+   866→   866→          fetchAttendance()
+   867→   867→        } else {
+   868→   868→          const data = await res.json()
+   869→   869→          toast.error(data.error || "Failed to record")
+   870→   870→        }
+   871→   871→      }
+   872→   872→    } catch (err) {
+   873→   873→      toast.error("An error occurred")
+   874→   874→    } finally {
+   875→   875→      setSubmitting(false)
+   876→   876→    }
+   877→   877→  }
+   878→   878→
+   879→   879→  const markAllPresent = async () => {
+   880→   880→    const activeStaff = allStaff.filter(
+   881→   881→      (s) => !attendance.find((a) => a.staffId === s.id)
+   882→   882→    )
+   883→   883→    if (activeStaff.length === 0) {
+   884→   884→      toast.info("All staff already have attendance records for this date")
+   885→   885→      return
+   886→   886→    }
+   887→   887→
+   888→   888→    setSubmitting(true)
+   889→   889→    const dateStr = format(selectedDate, "yyyy-MM-dd")
+   890→   890→    let successCount = 0
+   891→   891→    let failCount = 0
+   892→   892→
+   893→   893→    for (const s of activeStaff) {
+   894→   894→      try {
+   895→   895→        const res = await fetch("/api/attendance", {
+   896→   896→          method: "POST",
+   897→   897→          headers: { "Content-Type": "application/json" },
+   898→   898→          body: JSON.stringify({
+   899→   899→            staffId: s.id,
+   900→   900→            date: dateStr,
+   901→   901→            status: "PRESENT",
+   902→   902→          }),
+   903→   903→        })
+   904→   904→        if (res.ok) successCount++
+   905→   905→        else failCount++
+   906→   906→      } catch {
+   907→   907→        failCount++
+   908→   908→      }
+   909→   909→    }
+   910→   910→
+   911→   911→    setSubmitting(false)
+   912→   912→    toast.success(
+   913→   913→      `Marked ${successCount} staff as Present${failCount > 0 ? ` (${failCount} failed)` : ""}`
+   914→   914→    )
+   915→   915→    fetchAttendance()
+   916→   916→  }
+   917→   917→
+   918→   918→  const markAllAbsent = async () => {
+   919→   919→    const activeStaff = allStaff.filter(
+   920→   920→      (s) => !attendance.find((a) => a.staffId === s.id)
+   921→   921→    )
+   922→   922→    if (activeStaff.length === 0) {
+   923→   923→      toast.info("All staff already have attendance records for this date")
+   924→   924→      return
+   925→   925→    }
+   926→   926→
+   927→   927→    setSubmitting(true)
+   928→   928→    const dateStr = format(selectedDate, "yyyy-MM-dd")
+   929→   929→    let successCount = 0
+   930→   930→    let failCount = 0
+   931→   931→
+   932→   932→    for (const s of activeStaff) {
+   933→   933→      try {
+   934→   934→        const res = await fetch("/api/attendance", {
+   935→   935→          method: "POST",
+   936→   936→          headers: { "Content-Type": "application/json" },
+   937→   937→          body: JSON.stringify({
+   938→   938→            staffId: s.id,
+   939→   939→            date: dateStr,
+   940→   940→            status: "ABSENT",
+   941→   941→          }),
+   942→   942→        })
+   943→   943→        if (res.ok) successCount++
+   944→   944→        else failCount++
+   945→   945→      } catch {
+   946→   946→        failCount++
+   947→   947→      }
+   948→   948→    }
+   949→   949→
+   950→   950→    setSubmitting(false)
+   951→   951→    toast.success(
+   952→   952→      `Marked ${successCount} staff as Absent${failCount > 0 ? ` (${failCount} failed)` : ""}`
+   953→   953→    )
+   954→   954→    fetchAttendance()
+   955→   955→  }
+   956→   956→
+   957→   957→  // Weekly summary
+   958→   958→  const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 })
+   959→   959→  const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 0 })
+   960→   960→
+   961→   961→  const presentCount = attendance.filter((a) => a.status === "PRESENT").length
+   962→   962→  const absentCount = attendance.filter((a) => a.status === "ABSENT").length
+   963→   963→  const lateCount = attendance.filter((a) => a.status === "LATE").length
+   964→   964→  const leaveCount = attendance.filter((a) => a.status === "LEAVE").length
+   965→   965→
+   966→   966→  // Staff not yet recorded
+   967→   967→  const recordedStaffIds = attendance.map((a) => a.staffId)
+   968→   968→  const unrecordedStaff = allStaff.filter((s) => !recordedStaffIds.includes(s.id))
+   969→   969→
+   970→   970→  return (
+   971→   971→    <div className="space-y-6">
+   972→   972→      {/* Date Navigation */}
+   973→   973→      <Card>
+   974→   974→        <CardContent className="p-4">
+   975→   975→          <div className="flex items-center justify-between">
+   976→   976→            <Button
+   977→   977→              variant="outline"
+   978→   978→              size="sm"
+   979→   979→              onClick={() => setSelectedDate(subDays(selectedDate, 1))}
+   980→   980→            >
+   981→   981→              <ChevronLeft className="h-4 w-4" />
+   982→   982→            </Button>
+   983→   983→            <div className="text-center">
+   984→   984→              <p className="text-lg font-semibold">
+   985→   985→                {format(selectedDate, "EEEE, MMMM d, yyyy")}
+   986→   986→              </p>
+   987→   987→              <p className="text-sm text-muted-foreground">
+   988→   988→                Week: {format(weekStart, "MMM d")} - {format(weekEnd, "MMM d, yyyy")}
+   989→   989→              </p>
+   990→   990→            </div>
+   991→   991→            <div className="flex items-center gap-2">
+   992→   992→              <Button
+   993→   993→                variant="outline"
+   994→   994→                size="sm"
+   995→   995→                onClick={() => setSelectedDate(new Date())}
+   996→   996→              >
+   997→   997→                Today
+   998→   998→              </Button>
+   999→   999→              <Button
+  1000→  1000→                variant="outline"
+  1001→  1001→                size="sm"
+  1002→  1002→                onClick={() => setSelectedDate(addDays(selectedDate, 1))}
+  1003→  1003→              >
+  1004→  1004→                <ChevronRight className="h-4 w-4" />
+  1005→  1005→              </Button>
+  1006→  1006→            </div>
+  1007→  1007→          </div>
+  1008→  1008→        </CardContent>
+  1009→  1009→      </Card>
+  1010→  1010→
+  1011→  1011→      {/* Summary Cards */}
+  1012→  1012→      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-5">
+  1013→  1013→        <Card className="border-green-200 bg-green-50/50">
+  1014→  1014→          <CardContent className="p-4">
+  1015→  1015→            <p className="text-sm text-green-800">Recorded</p>
+  1016→  1016→            <p className="text-2xl font-bold text-green-950">{attendance.length}</p>
+  1017→  1017→          </CardContent>
+  1018→  1018→        </Card>
+  1019→  1019→        <Card className="border-green-200 bg-green-50/50">
+  1020→  1020→          <CardContent className="p-4">
+  1021→  1021→            <p className="text-sm text-green-700">Present</p>
+  1022→  1022→            <p className="text-2xl font-bold text-green-900">{presentCount}</p>
+  1023→  1023→          </CardContent>
+  1024→  1024→        </Card>
+  1025→  1025→        <Card className="border-red-200 bg-red-50/50">
+  1026→  1026→          <CardContent className="p-4">
+  1027→  1027→            <p className="text-sm text-red-700">Absent</p>
+  1028→  1028→            <p className="text-2xl font-bold text-red-900">{absentCount}</p>
+  1029→  1029→          </CardContent>
+  1030→  1030→        </Card>
+  1031→  1031→        <Card className="border-orange-200 bg-orange-50/50">
+  1032→  1032→          <CardContent className="p-4">
+  1033→  1033→            <p className="text-sm text-orange-700">Late</p>
+  1034→  1034→            <p className="text-2xl font-bold text-orange-900">{lateCount}</p>
+  1035→  1035→          </CardContent>
+  1036→  1036→        </Card>
+  1037→  1037→        <Card className="border-blue-200 bg-blue-50/50">
+  1038→  1038→          <CardContent className="p-4">
+  1039→  1039→            <p className="text-sm text-blue-700">On Leave</p>
+  1040→  1040→            <p className="text-2xl font-bold text-blue-900">{leaveCount}</p>
+  1041→  1041→          </CardContent>
+  1042→  1042→        </Card>
+  1043→  1043→      </div>
+  1044→  1044→
+  1045→  1045→      {/* Filters & Actions */}
+  1046→  1046→      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+  1047→  1047→        <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+  1048→  1048→          <Select
+  1049→  1049→            value={filterDept}
+  1050→  1050→            onValueChange={(v) => setFilterDept(v === "ALL" ? "" : v)}
+  1051→  1051→          >
+  1052→  1052→            <SelectTrigger className="w-full sm:w-[180px]">
+  1053→  1053→              <SelectValue placeholder="All Departments" />
+  1054→  1054→            </SelectTrigger>
+  1055→  1055→            <SelectContent>
+  1056→  1056→              <SelectItem value="ALL">All Departments</SelectItem>
+  1057→  1057→              {DEPARTMENTS.map((d) => (
+  1058→  1058→                <SelectItem key={d} value={d}>
+  1059→  1059→                  {d}
+  1060→  1060→                </SelectItem>
+  1061→  1061→              ))}
+  1062→  1062→            </SelectContent>
+  1063→  1063→          </Select>
+  1064→  1064→          <Select
+  1065→  1065→            value={filterRole}
+  1066→  1066→            onValueChange={(v) => setFilterRole(v === "ALL" ? "" : v)}
+  1067→  1067→          >
+  1068→  1068→            <SelectTrigger className="w-full sm:w-[160px]">
+  1069→  1069→              <SelectValue placeholder="All Roles" />
+  1070→  1070→            </SelectTrigger>
+  1071→  1071→            <SelectContent>
+  1072→  1072→              <SelectItem value="ALL">All Roles</SelectItem>
+  1073→  1073→              {ROLES.map((r) => (
+  1074→  1074→                <SelectItem key={r} value={r}>
+  1075→  1075→                  {ROLE_LABELS[r]}
+  1076→  1076→                </SelectItem>
+  1077→  1077→              ))}
+  1078→  1078→            </SelectContent>
+  1079→  1079→          </Select>
+  1080→  1080→        </div>
+  1081→  1081→        <div className="flex gap-2">
+  1082→  1082→          <Button
+  1083→  1083→            variant="outline"
+  1084→  1084→            size="sm"
+  1085→  1085→            onClick={markAllPresent}
+  1086→  1086→            disabled={submitting || unrecordedStaff.length === 0}
+  1087→  1087→          >
+  1088→  1088→            <UserCheck className="mr-1 h-4 w-4 text-green-600" />
+  1089→  1089→            All Present
+  1090→  1090→          </Button>
+  1091→  1091→          <Button
+  1092→  1092→            variant="outline"
+  1093→  1093→            size="sm"
+  1094→  1094→            onClick={markAllAbsent}
+  1095→  1095→            disabled={submitting || unrecordedStaff.length === 0}
+  1096→  1096→          >
+  1097→  1097→            <UserX className="mr-1 h-4 w-4 text-red-600" />
+  1098→  1098→            All Absent
+  1099→  1099→          </Button>
+  1100→  1100→          <Button
+  1101→  1101→            onClick={() => openRecordDialog()}
+  1102→  1102→            className="bg-green-700 hover:bg-green-800"
+  1103→  1103→          >
+  1104→  1104→            <Plus className="mr-2 h-4 w-4" />
+  1105→  1105→            Record
+  1106→  1106→          </Button>
+  1107→  1107→        </div>
+  1108→  1108→      </div>
+  1109→  1109→
+  1110→  1110→      {/* Attendance Table */}
+  1111→  1111→      <Card>
+  1112→  1112→        <CardContent className="p-0">
+  1113→  1113→          <div className="max-h-[420px] overflow-y-auto overflow-x-auto">
+  1114→  1114→            <Table>
+  1115→  1115→              <TableHeader>
+  1116→  1116→                <TableRow className="bg-muted/50">
+  1117→  1117→                  <TableHead className="font-semibold whitespace-nowrap">Staff Name</TableHead>
+  1118→  1118→                  <TableHead className="font-semibold whitespace-nowrap hidden sm:table-cell">Role</TableHead>
+  1119→  1119→                  <TableHead className="font-semibold whitespace-nowrap">Check In</TableHead>
+  1120→  1120→                  <TableHead className="font-semibold whitespace-nowrap hidden sm:table-cell">Check Out</TableHead>
+  1121→  1121→                  <TableHead className="font-semibold whitespace-nowrap">Status</TableHead>
+  1122→  1122→                  <TableHead className="font-semibold whitespace-nowrap hidden md:table-cell">Notes</TableHead>
+  1123→  1123→                  <TableHead className="font-semibold text-right">Actions</TableHead>
+  1124→  1124→                </TableRow>
+  1125→  1125→              </TableHeader>
+  1126→  1126→              <TableBody>
+  1127→  1127→                {loading ? (
+  1128→  1128→                  <TableRow>
+  1129→  1129→                    <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+  1130→  1130→                      Loading...
+  1131→  1131→                    </TableCell>
+  1132→  1132→                  </TableRow>
+  1133→  1133→                ) : attendance.length === 0 ? (
+  1134→  1134→                  <TableRow>
+  1135→  1135→                    <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+  1136→  1136→                      No attendance records for this date
+  1137→  1137→                    </TableCell>
+  1138→  1138→                  </TableRow>
+  1139→  1139→                ) : (
+  1140→  1140→                  attendance.map((a) => (
+  1141→  1141→                    <TableRow key={a.id}>
+  1142→  1142→                      <TableCell className="font-medium">{a.staff.name}</TableCell>
+  1143→  1143→                      <TableCell className="hidden sm:table-cell">
+  1144→  1144→                        <RoleBadge role={a.staff.role} />
+  1145→  1145→                      </TableCell>
+  1146→  1146→                      <TableCell className="text-sm">{formatTime(a.checkIn)}</TableCell>
+  1147→  1147→                      <TableCell className="text-sm hidden sm:table-cell">{formatTime(a.checkOut)}</TableCell>
+  1148→  1148→                      <TableCell>
+  1149→  1149→                        <StatusBadge status={a.status} type="attendance" />
+  1150→  1150→                      </TableCell>
+  1151→  1151→                      <TableCell className="max-w-[150px] truncate text-sm text-muted-foreground hidden md:table-cell">
+  1152→  1152→                        {a.notes || "—"}
+  1153→  1153→                      </TableCell>
+  1154→  1154→                      <TableCell className="text-right">
+  1155→  1155→                        <Button
+  1156→  1156→                          variant="ghost"
+  1157→  1157→                          size="sm"
+  1158→  1158→                          onClick={() => openRecordDialog(a)}
+  1159→  1159→                        >
+  1160→  1160→                          <Edit2 className="h-4 w-4" />
+  1161→  1161→                        </Button>
+  1162→  1162→                      </TableCell>
+  1163→  1163→                    </TableRow>
+  1164→  1164→                  ))
+  1165→  1165→                )}
+  1166→  1166→              </TableBody>
+  1167→  1167→            </Table>
+  1168→  1168→          </div>
+  1169→  1169→        </CardContent>
+  1170→  1170→      </Card>
+  1171→  1171→
+  1172→  1172→      {/* Unrecorded Staff */}
+  1173→  1173→      {unrecordedStaff.length > 0 && (
+  1174→  1174→        <Card className="border-amber-200 bg-amber-50/50">
+  1175→  1175→          <CardHeader className="pb-2">
+  1176→  1176→            <CardTitle className="text-sm font-medium text-amber-800">
+  1177→  1177→              Not Yet Recorded ({unrecordedStaff.length})
+  1178→  1178→            </CardTitle>
+  1179→  1179→          </CardHeader>
+  1180→  1180→          <CardContent className="flex flex-wrap gap-2">
+  1181→  1181→            {unrecordedStaff.slice(0, 10).map((s) => (
+  1182→  1182→              <Badge
+  1183→  1183→                key={s.id}
+  1184→  1184→                variant="outline"
+  1185→  1185→                className="cursor-pointer border-amber-300 bg-amber-100 text-amber-800 hover:bg-amber-200"
+  1186→  1186→                onClick={() => {
+  1187→  1187→                  setFormStaffId(s.id)
+  1188→  1188→                  openRecordDialog()
+  1189→  1189→                }}
+  1190→  1190→              >
+  1191→  1191→                {s.name}
+  1192→  1192→              </Badge>
+  1193→  1193→            ))}
+  1194→  1194→            {unrecordedStaff.length > 10 && (
+  1195→  1195→              <Badge variant="outline" className="border-amber-300 bg-amber-100 text-amber-800">
+  1196→  1196→                +{unrecordedStaff.length - 10} more
+  1197→  1197→              </Badge>
+  1198→  1198→            )}
+  1199→  1199→          </CardContent>
+  1200→  1200→        </Card>
+  1201→  1201→      )}
+  1202→  1202→
+  1203→  1203→      {/* Record Attendance Dialog */}
+  1204→  1204→      <Dialog open={showRecordDialog} onOpenChange={setShowRecordDialog}>
+  1205→  1205→        <DialogContent className="sm:max-w-md">
+  1206→  1206→          <DialogHeader>
+  1207→  1207→            <DialogTitle>
+  1208→  1208→              {editingAttendance ? "Edit Attendance" : "Record Attendance"}
+  1209→  1209→            </DialogTitle>
+  1210→  1210→            <DialogDescription>
+  1211→  1211→              Date: {format(selectedDate, "EEEE, MMMM d, yyyy")}
+  1212→  1212→            </DialogDescription>
+  1213→  1213→          </DialogHeader>
+  1214→  1214→          <div className="grid gap-4 py-2">
+  1215→  1215→            {!editingAttendance && (
+  1216→  1216→              <div className="grid gap-2">
+  1217→  1217→                <Label>Staff Member *</Label>
+  1218→  1218→                <Select value={formStaffId} onValueChange={setFormStaffId}>
+  1219→  1219→                  <SelectTrigger className="w-full">
+  1220→  1220→                    <SelectValue placeholder="Select staff" />
+  1221→  1221→                  </SelectTrigger>
+  1222→  1222→                  <SelectContent>
+  1223→  1223→                    {allStaff.map((s) => (
+  1224→  1224→                      <SelectItem key={s.id} value={s.id}>
+  1225→  1225→                        {s.name} ({ROLE_LABELS[s.role]})
+  1226→  1226→                      </SelectItem>
+  1227→  1227→                    ))}
+  1228→  1228→                  </SelectContent>
+  1229→  1229→                </Select>
+  1230→  1230→              </div>
+  1231→  1231→            )}
+  1232→  1232→            <div className="grid grid-cols-2 gap-4">
+  1233→  1233→              <div className="grid gap-2">
+  1234→  1234→                <Label htmlFor="checkin">Check In</Label>
+  1235→  1235→                <Input
+  1236→  1236→                  id="checkin"
+  1237→  1237→                  type="time"
+  1238→  1238→                  value={formCheckIn}
+  1239→  1239→                  onChange={(e) => setFormCheckIn(e.target.value)}
+  1240→  1240→                />
+  1241→  1241→              </div>
+  1242→  1242→              <div className="grid gap-2">
+  1243→  1243→                <Label htmlFor="checkout">Check Out</Label>
+  1244→  1244→                <Input
+  1245→  1245→                  id="checkout"
+  1246→  1246→                  type="time"
+  1247→  1247→                  value={formCheckOut}
+  1248→  1248→                  onChange={(e) => setFormCheckOut(e.target.value)}
+  1249→  1249→                />
+  1250→  1250→              </div>
+  1251→  1251→            </div>
+  1252→  1252→            <div className="grid gap-2">
+  1253→  1253→              <Label>Status</Label>
+  1254→  1254→              <Select value={formStatus} onValueChange={setFormStatus}>
+  1255→  1255→                <SelectTrigger className="w-full">
+  1256→  1256→                  <SelectValue />
+  1257→  1257→                </SelectTrigger>
+  1258→  1258→                <SelectContent>
+  1259→  1259→                  <SelectItem value="PRESENT">Present</SelectItem>
+  1260→  1260→                  <SelectItem value="ABSENT">Absent</SelectItem>
+  1261→  1261→                  <SelectItem value="LATE">Late</SelectItem>
+  1262→  1262→                  <SelectItem value="LEAVE">Leave</SelectItem>
+  1263→  1263→                  <SelectItem value="HALF_DAY">Half Day</SelectItem>
+  1264→  1264→                </SelectContent>
+  1265→  1265→              </Select>
+  1266→  1266→            </div>
+  1267→  1267→            <div className="grid gap-2">
+  1268→  1268→              <Label htmlFor="notes">Notes</Label>
+  1269→  1269→              <Textarea
+  1270→  1270→                id="notes"
+  1271→  1271→                placeholder="Optional notes..."
+  1272→  1272→                value={formNotes}
+  1273→  1273→                onChange={(e) => setFormNotes(e.target.value)}
+  1274→  1274→                rows={2}
+  1275→  1275→              />
+  1276→  1276→            </div>
+  1277→  1277→          </div>
+  1278→  1278→          <DialogFooter>
+  1279→  1279→            <Button variant="outline" onClick={() => setShowRecordDialog(false)}>
+  1280→  1280→              Cancel
+  1281→  1281→            </Button>
+  1282→  1282→            <Button
+  1283→  1283→              onClick={handleSubmitAttendance}
+  1284→  1284→              disabled={submitting}
+  1285→  1285→              className="bg-green-700 hover:bg-green-800"
+  1286→  1286→            >
+  1287→  1287→              {submitting
+  1288→  1288→                ? "Saving..."
+  1289→  1289→                : editingAttendance
+  1290→  1290→                ? "Update"
+  1291→  1291→                : "Record"}
+  1292→  1292→            </Button>
+  1293→  1293→          </DialogFooter>
+  1294→  1294→        </DialogContent>
+  1295→  1295→      </Dialog>
+  1296→  1296→    </div>
+  1297→  1297→  )
+  1298→  1298→}
+  1299→  1299→
+  1300→  1300→// ═══════════════════════════════════════════════════════════════════════════════
+  1301→  1301→// PAYROLL TAB
+  1302→  1302→// ═══════════════════════════════════════════════════════════════════════════════
+  1303→  1303→
+  1304→  1304→function PayrollTab() {
+  1305→  1305→  const now = new Date()
+  1306→  1306→  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1)
+  1307→  1307→  const [selectedYear, setSelectedYear] = useState(now.getFullYear())
+  1308→  1308→
+  1309→  1309→  const [salaries, setSalaries] = useState<SalaryRecord[]>([])
+  1310→  1310→  const [loading, setLoading] = useState(true)
+  1311→  1311→  const [submitting, setSubmitting] = useState(false)
+  1312→  1312→
+  1313→  1313→  // Detail Dialog
+  1314→  1314→  const [showDetailDialog, setShowDetailDialog] = useState(false)
+  1315→  1315→  const [detailSalary, setDetailSalary] = useState<SalaryRecord | null>(null)
+  1316→  1316→
+  1317→  1317→  // Edit Dialog
+  1318→  1318→  const [showEditDialog, setShowEditDialog] = useState(false)
+  1319→  1319→  const [editSalary, setEditSalary] = useState<SalaryRecord | null>(null)
+  1320→  1320→  const [formDeductions, setFormDeductions] = useState(0)
+  1321→  1321→  const [formBonuses, setFormBonuses] = useState(0)
+  1322→  1322→  const [formBaseSalary, setFormBaseSalary] = useState(0)
+  1323→  1323→
+  1324→  1324→  const fetchSalaries = useCallback(async () => {
+  1325→  1325→    setLoading(true)
+  1326→  1326→    try {
+  1327→  1327→      const params = new URLSearchParams()
+  1328→  1328→      params.set("month", selectedMonth.toString())
+  1329→  1329→      params.set("year", selectedYear.toString())
+  1330→  1330→
+  1331→  1331→      const res = await fetch(`/api/salary?${params.toString()}`)
+  1332→  1332→      if (res.ok) {
+  1333→  1333→        const data = await res.json()
+  1334→  1334→        setSalaries(data)
+  1335→  1335→      }
+  1336→  1336→    } catch (err) {
+  1337→  1337→      console.error(err)
+  1338→  1338→    } finally {
+  1339→  1339→      setLoading(false)
+  1340→  1340→    }
+  1341→  1341→  }, [selectedMonth, selectedYear])
+  1342→  1342→
+  1343→  1343→  useEffect(() => {
+  1344→  1344→    fetchSalaries()
+  1345→  1345→  }, [fetchSalaries])
+  1346→  1346→
+  1347→  1347→  const handleGeneratePayroll = async () => {
+  1348→  1348→    if (
+  1349→  1349→      !confirm(
+  1350→  1350→        `Generate payroll for all active staff for ${MONTHS[selectedMonth - 1]} ${selectedYear}?`
+  1351→  1351→      )
+  1352→  1352→    )
+  1353→  1353→      return
+  1354→  1354→
+  1355→  1355→    setSubmitting(true)
+  1356→  1356→    try {
+  1357→  1357→      const res = await fetch("/api/salary", {
+  1358→  1358→        method: "POST",
+  1359→  1359→        headers: { "Content-Type": "application/json" },
+  1360→  1360→        body: JSON.stringify({
+  1361→  1361→          month: selectedMonth,
+  1362→  1362→          year: selectedYear,
+  1363→  1363→        }),
+  1364→  1364→      })
+  1365→  1365→      if (res.ok) {
+  1366→  1366→        const data = await res.json()
+  1367→  1367→        toast.success(
+  1368→  1368→          `Payroll generated for ${data.count} staff member(s)`
+  1369→  1369→        )
+  1370→  1370→        if (data.errors && data.errors.length > 0) {
+  1371→  1371→          toast.info(
+  1372→  1372→            `${data.errors.length} staff already had payroll records`
+  1373→  1373→          )
+  1374→  1374→        }
+  1375→  1375→        fetchSalaries()
+  1376→  1376→      } else {
+  1377→  1377→        const data = await res.json()
+  1378→  1378→        toast.error(data.error || "Failed to generate payroll")
+  1379→  1379→      }
+  1380→  1380→    } catch (err) {
+  1381→  1381→      toast.error("An error occurred")
+  1382→  1382→    } finally {
+  1383→  1383→      setSubmitting(false)
+  1384→  1384→    }
+  1385→  1385→  }
+  1386→  1386→
+  1387→  1387→  const handlePaySalary = async (s: SalaryRecord) => {
+  1388→  1388→    if (!confirm(`Mark salary for ${s.staff.name} as PAID?`)) return
+  1389→  1389→    try {
+  1390→  1390→      const res = await fetch(`/api/salary/${s.id}`, {
+  1391→  1391→        method: "PUT",
+  1392→  1392→        headers: { "Content-Type": "application/json" },
+  1393→  1393→        body: JSON.stringify({ status: "PAID" }),
+  1394→  1394→      })
+  1395→  1395→      if (res.ok) {
+  1396→  1396→        toast.success("Salary marked as paid")
+  1397→  1397→        fetchSalaries()
+  1398→  1398→      }
+  1399→  1399→    } catch (err) {
+  1400→  1400→      toast.error("Failed to update salary")
+  1401→  1401→    }
+  1402→  1402→  }
+  1403→  1403→
+  1404→  1404→  const openDetail = (s: SalaryRecord) => {
+  1405→  1405→    setDetailSalary(s)
+  1406→  1406→    setShowDetailDialog(true)
+  1407→  1407→  }
+  1408→  1408→
+  1409→  1409→  const openEdit = (s: SalaryRecord) => {
+  1410→  1410→    setEditSalary(s)
+  1411→  1411→    setFormBaseSalary(s.baseSalary)
+  1412→  1412→    setFormDeductions(s.deductions)
+  1413→  1413→    setFormBonuses(s.bonuses)
+  1414→  1414→    setShowEditDialog(true)
+  1415→  1415→  }
+  1416→  1416→
+  1417→  1417→  const handleSaveEdit = async () => {
+  1418→  1418→    if (!editSalary) return
+  1419→  1419→    setSubmitting(true)
+  1420→  1420→    try {
+  1421→  1421→      const res = await fetch(`/api/salary/${editSalary.id}`, {
+  1422→  1422→        method: "PUT",
+  1423→  1423→        headers: { "Content-Type": "application/json" },
+  1424→  1424→        body: JSON.stringify({
+  1425→  1425→          baseSalary: formBaseSalary,
+  1426→  1426→          deductions: formDeductions,
+  1427→  1427→          bonuses: formBonuses,
+  1428→  1428→        }),
+  1429→  1429→      })
+  1430→  1430→      if (res.ok) {
+  1431→  1431→        toast.success("Salary updated")
+  1432→  1432→        setShowEditDialog(false)
+  1433→  1433→        fetchSalaries()
+  1434→  1434→      } else {
+  1435→  1435→        const data = await res.json()
+  1436→  1436→        toast.error(data.error || "Failed to update")
+  1437→  1437→      }
+  1438→  1438→    } catch (err) {
+  1439→  1439→      toast.error("An error occurred")
+  1440→  1440→    } finally {
+  1441→  1441→      setSubmitting(false)
+  1442→  1442→    }
+  1443→  1443→  }
+  1444→  1444→
+  1445→  1445→  // Stats
+  1446→  1446→  const totalPaid = salaries
+  1447→  1447→    .filter((s) => s.status === "PAID")
+  1448→  1448→    .reduce((sum, s) => sum + s.netSalary, 0)
+  1449→  1449→  const totalPending = salaries
+  1450→  1450→    .filter((s) => s.status === "PENDING")
+  1451→  1451→    .reduce((sum, s) => sum + s.netSalary, 0)
+  1452→  1452→  const paidCount = salaries.filter((s) => s.status === "PAID").length
+  1453→  1453→  const pendingCount = salaries.filter((s) => s.status === "PENDING").length
+  1454→  1454→
+  1455→  1455→  const calculatedNet = formBaseSalary - formDeductions + formBonuses
+  1456→  1456→
+  1457→  1457→  return (
+  1458→  1458→    <div className="space-y-6">
+  1459→  1459→      {/* Month/Year Selector */}
+  1460→  1460→      <Card>
+  1461→  1461→        <CardContent className="p-4">
+  1462→  1462→          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+  1463→  1463→            <div className="flex items-center gap-4">
+  1464→  1464→              <Select
+  1465→  1465→                value={selectedMonth.toString()}
+  1466→  1466→                onValueChange={(v) => setSelectedMonth(parseInt(v))}
+  1467→  1467→              >
+  1468→  1468→                <SelectTrigger className="w-[160px]">
+  1469→  1469→                  <SelectValue />
+  1470→  1470→                </SelectTrigger>
+  1471→  1471→                <SelectContent>
+  1472→  1472→                  {MONTHS.map((m, i) => (
+  1473→  1473→                    <SelectItem key={i} value={(i + 1).toString()}>
+  1474→  1474→                      {m}
+  1475→  1475→                    </SelectItem>
+  1476→  1476→                  ))}
+  1477→  1477→                </SelectContent>
+  1478→  1478→              </Select>
+  1479→  1479→              <Select
+  1480→  1480→                value={selectedYear.toString()}
+  1481→  1481→                onValueChange={(v) => setSelectedYear(parseInt(v))}
+  1482→  1482→              >
+  1483→  1483→                <SelectTrigger className="w-[120px]">
+  1484→  1484→                  <SelectValue />
+  1485→  1485→                </SelectTrigger>
+  1486→  1486→                <SelectContent>
+  1487→  1487→                  {[2024, 2025, 2026].map((y) => (
+  1488→  1488→                    <SelectItem key={y} value={y.toString()}>
+  1489→  1489→                      {y}
+  1490→  1490→                    </SelectItem>
+  1491→  1491→                  ))}
+  1492→  1492→                </SelectContent>
+  1493→  1493→              </Select>
+  1494→  1494→            </div>
+  1495→  1495→            <Button
+  1496→  1496→              onClick={handleGeneratePayroll}
+  1497→  1497→              disabled={submitting}
+  1498→  1498→              className="bg-green-700 hover:bg-green-800"
+  1499→  1499→            >
+  1500→  1500→              <Banknote className="mr-2 h-4 w-4" />
+  1501→  1501→              {submitting ? "Generating..." : "Generate Payroll"}
+  1502→  1502→            </Button>
+  1503→  1503→          </div>
+  1504→  1504→        </CardContent>
+  1505→  1505→      </Card>
+  1506→  1506→
+  1507→  1507→      {/* Stats Cards */}
+  1508→  1508→      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+  1509→  1509→        <Card className="border-green-200 bg-green-50/50">
+  1510→  1510→          <CardContent className="p-4">
+  1511→  1511→            <p className="text-sm text-green-800">Total Records</p>
+  1512→  1512→            <p className="text-2xl font-bold text-green-950">{salaries.length}</p>
+  1513→  1513→          </CardContent>
+  1514→  1514→        </Card>
+  1515→  1515→        <Card className="border-green-200 bg-green-50/50">
+  1516→  1516→          <CardContent className="p-4">
+  1517→  1517→            <p className="text-sm text-green-700">Paid ({paidCount})</p>
+  1518→  1518→            <p className="text-lg font-bold text-green-900">
+  1519→  1519→              {formatCurrency(totalPaid)}
+  1520→  1520→            </p>
+  1521→  1521→          </CardContent>
+  1522→  1522→        </Card>
+  1523→  1523→        <Card className="border-yellow-200 bg-yellow-50/50">
+  1524→  1524→          <CardContent className="p-4">
+  1525→  1525→            <p className="text-sm text-yellow-700">Pending ({pendingCount})</p>
+  1526→  1526→            <p className="text-lg font-bold text-yellow-900">
+  1527→  1527→              {formatCurrency(totalPending)}
+  1528→  1528→            </p>
+  1529→  1529→          </CardContent>
+  1530→  1530→        </Card>
+  1531→  1531→        <Card className="border-blue-200 bg-blue-50/50">
+  1532→  1532→          <CardContent className="p-4">
+  1533→  1533→            <p className="text-sm text-blue-700">Total Amount</p>
+  1534→  1534→            <p className="text-lg font-bold text-blue-900">
+  1535→  1535→              {formatCurrency(totalPaid + totalPending)}
+  1536→  1536→            </p>
+  1537→  1537→          </CardContent>
+  1538→  1538→        </Card>
+  1539→  1539→      </div>
+  1540→  1540→
+  1541→  1541→      {/* Payroll Table */}
+  1542→  1542→      <Card>
+  1543→  1543→        <CardContent className="p-0">
+  1544→  1544→          <div className="max-h-[480px] overflow-y-auto">
+  1545→  1545→            <Table>
+  1546→  1546→              <TableHeader>
+  1547→  1547→                <TableRow className="bg-muted/50">
+  1548→  1548→                  <TableHead className="font-semibold">Staff Name</TableHead>
+  1549→  1549→                  <TableHead className="font-semibold">Role</TableHead>
+  1550→  1550→                  <TableHead className="font-semibold text-right">Base Salary</TableHead>
+  1551→  1551→                  <TableHead className="font-semibold text-right">Deductions</TableHead>
+  1552→  1552→                  <TableHead className="font-semibold text-right">Bonuses</TableHead>
+  1553→  1553→                  <TableHead className="font-semibold text-right">Net Salary</TableHead>
+  1554→  1554→                  <TableHead className="font-semibold">Status</TableHead>
+  1555→  1555→                  <TableHead className="font-semibold text-right">Actions</TableHead>
+  1556→  1556→                </TableRow>
+  1557→  1557→              </TableHeader>
+  1558→  1558→              <TableBody>
+  1559→  1559→                {loading ? (
+  1560→  1560→                  <TableRow>
+  1561→  1561→                    <TableCell colSpan={8} className="py-12 text-center text-muted-foreground">
+  1562→  1562→                      Loading...
+  1563→  1563→                    </TableCell>
+  1564→  1564→                  </TableRow>
+  1565→  1565→                ) : salaries.length === 0 ? (
+  1566→  1566→                  <TableRow>
+  1567→  1567→                    <TableCell colSpan={8} className="py-12 text-center text-muted-foreground">
+  1568→  1568→                      No payroll records for {MONTHS[selectedMonth - 1]} {selectedYear}.
+  1569→  1569→                      Click &quot;Generate Payroll&quot; to create records.
+  1570→  1570→                    </TableCell>
+  1571→  1571→                  </TableRow>
+  1572→  1572→                ) : (
+  1573→  1573→                  salaries.map((s) => (
+  1574→  1574→                    <TableRow key={s.id}>
+  1575→  1575→                      <TableCell className="font-medium">{s.staff.name}</TableCell>
+  1576→  1576→                      <TableCell>
+  1577→  1577→                        <RoleBadge role={s.staff.role} />
+  1578→  1578→                      </TableCell>
+  1579→  1579→                      <TableCell className="text-right">
+  1580→  1580→                        {formatCurrency(s.baseSalary)}
+  1581→  1581→                      </TableCell>
+  1582→  1582→                      <TableCell className="text-right text-red-600">
+  1583→  1583→                        -{formatCurrency(s.deductions)}
+  1584→  1584→                      </TableCell>
+  1585→  1585→                      <TableCell className="text-right text-green-600">
+  1586→  1586→                        +{formatCurrency(s.bonuses)}
+  1587→  1587→                      </TableCell>
+  1588→  1588→                      <TableCell className="text-right font-semibold">
+  1589→  1589→                        {formatCurrency(s.netSalary)}
+  1590→  1590→                      </TableCell>
+  1591→  1591→                      <TableCell>
+  1592→  1592→                        <StatusBadge status={s.status} type="salary" />
+  1593→  1593→                      </TableCell>
+  1594→  1594→                      <TableCell className="text-right">
+  1595→  1595→                        <div className="flex items-center justify-end gap-1">
+  1596→  1596→                          <Button
+  1597→  1597→                            variant="ghost"
+  1598→  1598→                            size="sm"
+  1599→  1599→                            onClick={() => openDetail(s)}
+  1600→  1600→                            title="View details"
+  1601→  1601→                          >
+  1602→  1602→                            <Eye className="h-4 w-4" />
+  1603→  1603→                          </Button>
+  1604→  1604→                          <Button
+  1605→  1605→                            variant="ghost"
+  1606→  1606→                            size="sm"
+  1607→  1607→                            onClick={() => openEdit(s)}
+  1608→  1608→                            title="Edit"
+  1609→  1609→                          >
+  1610→  1610→                            <Edit2 className="h-4 w-4" />
+  1611→  1611→                          </Button>
+  1612→  1612→                          {s.status === "PENDING" && (
+  1613→  1613→                            <Button
+  1614→  1614→                              variant="ghost"
+  1615→  1615→                              size="sm"
+  1616→  1616→                              onClick={() => handlePaySalary(s)}
+  1617→  1617→                              className="text-green-600 hover:text-green-700"
+  1618→  1618→                              title="Mark as paid"
+  1619→  1619→                            >
+  1620→  1620→                              <CheckCircle2 className="h-4 w-4" />
+  1621→  1621→                            </Button>
+  1622→  1622→                          )}
+  1623→  1623→                        </div>
+  1624→  1624→                      </TableCell>
+  1625→  1625→                    </TableRow>
+  1626→  1626→                  ))
+  1627→  1627→                )}
+  1628→  1628→              </TableBody>
+  1629→  1629→            </Table>
+  1630→  1630→          </div>
+  1631→  1631→        </CardContent>
+  1632→  1632→      </Card>
+  1633→  1633→
+  1634→  1634→      {/* Detail Dialog */}
+  1635→  1635→      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+  1636→  1636→        <DialogContent className="sm:max-w-md">
+  1637→  1637→          <DialogHeader>
+  1638→  1638→            <DialogTitle>Payroll Details</DialogTitle>
+  1639→  1639→          </DialogHeader>
+  1640→  1640→          {detailSalary && (
+  1641→  1641→            <div className="space-y-4">
+  1642→  1642→              <div className="grid grid-cols-2 gap-4 text-sm">
+  1643→  1643→                <div>
+  1644→  1644→                  <p className="text-muted-foreground">Staff Name</p>
+  1645→  1645→                  <p className="font-medium">{detailSalary.staff.name}</p>
+  1646→  1646→                </div>
+  1647→  1647→                <div>
+  1648→  1648→                  <p className="text-muted-foreground">Role</p>
+  1649→  1649→                  <RoleBadge role={detailSalary.staff.role} />
+  1650→  1650→                </div>
+  1651→  1651→                <div>
+  1652→  1652→                  <p className="text-muted-foreground">Department</p>
+  1653→  1653→                  <p className="font-medium">{detailSalary.staff.department || "—"}</p>
+  1654→  1654→                </div>
+  1655→  1655→                <div>
+  1656→  1656→                  <p className="text-muted-foreground">Period</p>
+  1657→  1657→                  <p className="font-medium">
+  1658→  1658→                    {MONTHS[detailSalary.month - 1]} {detailSalary.year}
+  1659→  1659→                  </p>
+  1660→  1660→                </div>
+  1661→  1661→              </div>
+  1662→  1662→              <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+  1663→  1663→                <div className="flex justify-between text-sm">
+  1664→  1664→                  <span className="text-muted-foreground">Base Salary</span>
+  1665→  1665→                  <span className="font-medium">{formatCurrency(detailSalary.baseSalary)}</span>
+  1666→  1666→                </div>
+  1667→  1667→                <div className="flex justify-between text-sm">
+  1668→  1668→                  <span className="text-muted-foreground">Deductions</span>
+  1669→  1669→                  <span className="font-medium text-red-600">
+  1670→  1670→                    -{formatCurrency(detailSalary.deductions)}
+  1671→  1671→                  </span>
+  1672→  1672→                </div>
+  1673→  1673→                <div className="flex justify-between text-sm">
+  1674→  1674→                  <span className="text-muted-foreground">Bonuses</span>
+  1675→  1675→                  <span className="font-medium text-green-600">
+  1676→  1676→                    +{formatCurrency(detailSalary.bonuses)}
+  1677→  1677→                  </span>
+  1678→  1678→                </div>
+  1679→  1679→                <div className="border-t pt-2">
+  1680→  1680→                  <div className="flex justify-between text-sm">
+  1681→  1681→                    <span className="font-semibold">Net Salary</span>
+  1682→  1682→                    <span className="text-lg font-bold text-green-800">
+  1683→  1683→                      {formatCurrency(detailSalary.netSalary)}
+  1684→  1684→                    </span>
+  1685→  1685→                  </div>
+  1686→  1686→                </div>
+  1687→  1687→              </div>
+  1688→  1688→              <div className="grid grid-cols-2 gap-4 text-sm">
+  1689→  1689→                <div>
+  1690→  1690→                  <p className="text-muted-foreground">Status</p>
+  1691→  1691→                  <StatusBadge status={detailSalary.status} type="salary" />
+  1692→  1692→                </div>
+  1693→  1693→                {detailSalary.paidDate && (
+  1694→  1694→                  <div>
+  1695→  1695→                    <p className="text-muted-foreground">Paid Date</p>
+  1696→  1696→                    <p className="font-medium">
+  1697→  1697→                      {format(new Date(detailSalary.paidDate), "MMM d, yyyy")}
+  1698→  1698→                    </p>
+  1699→  1699→                  </div>
+  1700→  1700→                )}
+  1701→  1701→              </div>
+  1702→  1702→            </div>
+  1703→  1703→          )}
+  1704→  1704→        </DialogContent>
+  1705→  1705→      </Dialog>
+  1706→  1706→
+  1707→  1707→      {/* Edit Salary Dialog */}
+  1708→  1708→      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+  1709→  1709→        <DialogContent className="sm:max-w-md">
+  1710→  1710→          <DialogHeader>
+  1711→  1711→            <DialogTitle>Edit Salary</DialogTitle>
+  1712→  1712→            <DialogDescription>
+  1713→  1713→              Adjust salary details for {editSalary?.staff.name}
+  1714→  1714→            </DialogDescription>
+  1715→  1715→          </DialogHeader>
+  1716→  1716→          <div className="grid gap-4 py-2">
+  1717→  1717→            <div className="grid gap-2">
+  1718→  1718→              <Label>Base Salary</Label>
+  1719→  1719→              <Input
+  1720→  1720→                type="number"
+  1721→  1721→                value={formBaseSalary}
+  1722→  1722→                onChange={(e) => setFormBaseSalary(parseFloat(e.target.value) || 0)}
+  1723→  1723→              />
+  1724→  1724→            </div>
+  1725→  1725→            <div className="grid gap-2">
+  1726→  1726→              <Label>Deductions</Label>
+  1727→  1727→              <Input
+  1728→  1728→                type="number"
+  1729→  1729→                value={formDeductions}
+  1730→  1730→                onChange={(e) => setFormDeductions(parseFloat(e.target.value) || 0)}
+  1731→  1731→              />
+  1732→  1732→            </div>
+  1733→  1733→            <div className="grid gap-2">
+  1734→  1734→              <Label>Bonuses</Label>
+  1735→  1735→              <Input
+  1736→  1736→                type="number"
+  1737→  1737→                value={formBonuses}
+  1738→  1738→                onChange={(e) => setFormBonuses(parseFloat(e.target.value) || 0)}
+  1739→  1739→              />
+  1740→  1740→            </div>
+  1741→  1741→            <div className="rounded-lg border bg-green-50 p-3">
+  1742→  1742→              <div className="flex justify-between">
+  1743→  1743→                <span className="text-sm font-medium text-green-900">Net Salary</span>
+  1744→  1744→                <span className="text-lg font-bold text-green-950">
+  1745→  1745→                  {formatCurrency(calculatedNet)}
+  1746→  1746→                </span>
+  1747→  1747→              </div>
+  1748→  1748→              <p className="text-xs text-green-700">
+  1749→  1749→                Base - Deductions + Bonuses
+  1750→  1750→              </p>
+  1751→  1751→            </div>
+  1752→  1752→          </div>
+  1753→  1753→          <DialogFooter>
+  1754→  1754→            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+  1755→  1755→              Cancel
+  1756→  1756→            </Button>
+  1757→  1757→            <Button
+  1758→  1758→              onClick={handleSaveEdit}
+  1759→  1759→              disabled={submitting}
+  1760→  1760→              className="bg-green-700 hover:bg-green-800"
+  1761→  1761→            >
+  1762→  1762→              {submitting ? "Saving..." : "Save Changes"}
+  1763→  1763→            </Button>
+  1764→  1764→          </DialogFooter>
+  1765→  1765→        </DialogContent>
+  1766→  1766→      </Dialog>
+  1767→  1767→    </div>
+  1768→  1768→  )
+  1769→  1769→}
+  1770→  1770→
+  1771→  1771→// ═══════════════════════════════════════════════════════════════════════════════
+  1772→  1772→// DUTY ROSTER TAB
+  1773→  1773→// ═══════════════════════════════════════════════════════════════════════════════
+  1774→  1774→
+  1775→  1775→function DutyRosterTab() {
+  1776→  1776→  const [weekOffset, setWeekOffset] = useState(0)
+  1777→  1777→  const [duties, setDuties] = useState<DutyAssignment[]>([])
+  1778→  1778→  const [allStaff, setAllStaff] = useState<StaffMember[]>([])
+  1779→  1779→  const [loading, setLoading] = useState(true)
+  1780→  1780→  const [filterRole, setFilterRole] = useState("")
+  1781→  1781→
+  1782→  1782→  // Dialog
+  1783→  1783→  const [showAssignDialog, setShowAssignDialog] = useState(false)
+  1784→  1784→  const [editingDuty, setEditingDuty] = useState<DutyAssignment | null>(null)
+  1785→  1785→  const [formStaffId, setFormStaffId] = useState("")
+  1786→  1786→  const [formDate, setFormDate] = useState("")
+  1787→  1787→  const [formShift, setFormShift] = useState("MORNING")
+  1788→  1788→  const [formOnCall, setFormOnCall] = useState(false)
+  1789→  1789→  const [formNotes, setFormNotes] = useState("")
+  1790→  1790→  const [submitting, setSubmitting] = useState(false)
+  1791→  1791→
+  1792→  1792→  // Computed week dates
+  1793→  1793→  const baseDate = new Date()
+  1794→  1794→  const currentWeekStart = startOfWeek(
+  1795→  1795→    addDays(baseDate, weekOffset * 7),
+  1796→  1796→    { weekStartsOn: 0 }
+  1797→  1797→  )
+  1798→  1798→  const weekDays = Array.from({ length: 7 }, (_, i) =>
+  1799→  1799→    addDays(currentWeekStart, i)
+  1800→  1800→  )
+  1801→  1801→
+  1802→  1802→  const fetchDuties = useCallback(async () => {
+  1803→  1803→    setLoading(true)
+  1804→  1804→    try {
+  1805→  1805→      const params = new URLSearchParams()
+  1806→  1806→      params.set("weekStart", format(weekDays[0], "yyyy-MM-dd"))
+  1807→  1807→      params.set("weekEnd", format(weekDays[6], "yyyy-MM-dd"))
+  1808→  1808→      if (filterRole) params.set("role", filterRole)
+  1809→  1809→
+  1810→  1810→      const res = await fetch(`/api/duty-roster?${params.toString()}`)
+  1811→  1811→      if (res.ok) {
+  1812→  1812→        const data = await res.json()
+  1813→  1813→        setDuties(data)
+  1814→  1814→      }
+  1815→  1815→    } catch (err) {
+  1816→  1816→      console.error(err)
+  1817→  1817→    } finally {
+  1818→  1818→      setLoading(false)
+  1819→  1819→    }
+  1820→  1820→  }, [weekDays, filterRole])
+  1821→  1821→
+  1822→  1822→  const fetchStaff = useCallback(async () => {
+  1823→  1823→    const res = await fetch("/api/staff?isActive=true")
+  1824→  1824→    if (res.ok) {
+  1825→  1825→      const data = await res.json()
+  1826→  1826→      setAllStaff(data)
+  1827→  1827→    }
+  1828→  1828→  }, [])
+  1829→  1829→
+  1830→  1830→  useEffect(() => {
+  1831→  1831→    fetchDuties()
+  1832→  1832→    fetchStaff()
+  1833→  1833→  }, [fetchDuties, fetchStaff])
+  1834→  1834→
+  1835→  1835→  const openAssignDialog = (duty?: DutyAssignment, dateStr?: string) => {
+  1836→  1836→    if (duty) {
+  1837→  1837→      setEditingDuty(duty)
+  1838→  1838→      setFormStaffId(duty.staffId)
+  1839→  1839→      setFormDate(format(new Date(duty.date), "yyyy-MM-dd"))
+  1840→  1840→      setFormShift(duty.shift)
+  1841→  1841→      setFormOnCall(duty.isOnCall)
+  1842→  1842→      setFormNotes(duty.notes || "")
+  1843→  1843→    } else {
+  1844→  1844→      setEditingDuty(null)
+  1845→  1845→      setFormStaffId("")
+  1846→  1846→      setFormDate(dateStr || format(new Date(), "yyyy-MM-dd"))
+  1847→  1847→      setFormShift("MORNING")
+  1848→  1848→      setFormOnCall(false)
+  1849→  1849→      setFormNotes("")
+  1850→  1850→    }
+  1851→  1851→    setShowAssignDialog(true)
+  1852→  1852→  }
+  1853→  1853→
+  1854→  1854→  const handleSubmitDuty = async () => {
+  1855→  1855→    if (!formStaffId || !formDate || !formShift) {
+  1856→  1856→      toast.error("Staff, date, and shift are required")
+  1857→  1857→      return
+  1858→  1858→    }
+  1859→  1859→    setSubmitting(true)
+  1860→  1860→    try {
+  1861→  1861→      if (editingDuty) {
+  1862→  1862→        const res = await fetch(`/api/duty-roster/${editingDuty.id}`, {
+  1863→  1863→          method: "PUT",
+  1864→  1864→          headers: { "Content-Type": "application/json" },
+  1865→  1865→          body: JSON.stringify({
+  1866→  1866→            staffId: formStaffId,
+  1867→  1867→            date: formDate,
+  1868→  1868→            shift: formShift,
+  1869→  1869→            isOnCall: formOnCall,
+  1870→  1870→            notes: formNotes || null,
+  1871→  1871→          }),
+  1872→  1872→        })
+  1873→  1873→        if (res.ok) {
+  1874→  1874→          toast.success("Duty updated")
+  1875→  1875→          setShowAssignDialog(false)
+  1876→  1876→          fetchDuties()
+  1877→  1877→        } else {
+  1878→  1878→          const data = await res.json()
+  1879→  1879→          toast.error(data.error || "Failed to update")
+  1880→  1880→        }
+  1881→  1881→      } else {
+  1882→  1882→        const res = await fetch("/api/duty-roster", {
+  1883→  1883→          method: "POST",
+  1884→  1884→          headers: { "Content-Type": "application/json" },
+  1885→  1885→          body: JSON.stringify({
+  1886→  1886→            staffId: formStaffId,
+  1887→  1887→            date: formDate,
+  1888→  1888→            shift: formShift,
+  1889→  1889→            isOnCall: formOnCall,
+  1890→  1890→            notes: formNotes || null,
+  1891→  1891→          }),
+  1892→  1892→        })
+  1893→  1893→        if (res.ok) {
+  1894→  1894→          toast.success("Duty assigned")
+  1895→  1895→          setShowAssignDialog(false)
+  1896→  1896→          fetchDuties()
+  1897→  1897→        } else {
+  1898→  1898→          const data = await res.json()
+  1899→  1899→          toast.error(data.error || "Failed to assign")
+  1900→  1900→        }
+  1901→  1901→      }
+  1902→  1902→    } catch (err) {
+  1903→  1903→      toast.error("An error occurred")
+  1904→  1904→    } finally {
+  1905→  1905→      setSubmitting(false)
+  1906→  1906→    }
+  1907→  1907→  }
+  1908→  1908→
+  1909→  1909→  const handleDeleteDuty = async (id: string) => {
+  1910→  1910→    if (!confirm("Remove this duty assignment?")) return
+  1911→  1911→    try {
+  1912→  1912→      const res = await fetch(`/api/duty-roster/${id}`, { method: "DELETE" })
+  1913→  1913→      if (res.ok) {
+  1914→  1914→        toast.success("Duty removed")
+  1915→  1915→        fetchDuties()
+  1916→  1916→      }
+  1917→  1917→    } catch (err) {
+  1918→  1918→      toast.error("Failed to remove duty")
+  1919→  1919→    }
+  1920→  1920→  }
+  1921→  1921→
+  1922→  1922→  // Build grid: filter staff by role if needed
+  1923→  1923→  const filteredStaff = filterRole
+  1924→  1924→    ? allStaff.filter((s) => s.role === filterRole)
+  1925→  1925→    : allStaff
+  1926→  1926→
+  1927→  1927→  const getDutyForCell = (staffId: string, date: Date): DutyAssignment | undefined => {
+  1928→  1928→    const dateStr = format(date, "yyyy-MM-dd")
+  1929→  1929→    const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  1930→  1930→    const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999)
+  1931→  1931→
+  1932→  1932→    return duties.find(
+  1933→  1933→      (d) =>
+  1934→  1934→        d.staffId === staffId &&
+  1935→  1935→        new Date(d.date) >= startOfDay &&
+  1936→  1936→        new Date(d.date) <= endOfDay
+  1937→  1937→    )
+  1938→  1938→  }
+  1939→  1939→
+  1940→  1940→  const isToday = (date: Date) => {
+  1941→  1941→    const today = new Date()
+  1942→  1942→    return (
+  1943→  1943→      date.getDate() === today.getDate() &&
+  1944→  1944→      date.getMonth() === today.getMonth() &&
+  1945→  1945→      date.getFullYear() === today.getFullYear()
+  1946→  1946→    )
+  1947→  1947→  }
+  1948→  1948→
+  1949→  1949→  return (
+  1950→  1950→    <div className="space-y-6">
+  1951→  1951→      {/* Week Navigation */}
+  1952→  1952→      <Card>
+  1953→  1953→        <CardContent className="p-4">
+  1954→  1954→          <div className="flex items-center justify-between">
+  1955→  1955→            <Button
+  1956→  1956→              variant="outline"
+  1957→  1957→              size="sm"
+  1958→  1958→              onClick={() => setWeekOffset((w) => w - 1)}
+  1959→  1959→            >
+  1960→  1960→              <ChevronLeft className="mr-1 h-4 w-4" />
+  1961→  1961→              Previous Week
+  1962→  1962→            </Button>
+  1963→  1963→            <div className="text-center">
+  1964→  1964→              <p className="text-lg font-semibold">
+  1965→  1965→                {format(weekDays[0], "MMM d")} - {format(weekDays[6], "MMM d, yyyy")}
+  1966→  1966→              </p>
+  1967→  1967→              <p className="text-sm text-muted-foreground">
+  1968→  1968→                {weekOffset === 0
+  1969→  1969→                  ? "Current Week"
+  1970→  1970→                  : weekOffset === 1
+  1971→  1971→                  ? "Next Week"
+  1972→  1972→                  : weekOffset === -1
+  1973→  1973→                  ? "Last Week"
+  1974→  1974→                  : `${Math.abs(weekOffset)} weeks ${weekOffset > 0 ? "ahead" : "ago"}`}
+  1975→  1975→              </p>
+  1976→  1976→            </div>
+  1977→  1977→            <div className="flex items-center gap-2">
+  1978→  1978→              <Button
+  1979→  1979→                variant="outline"
+  1980→  1980→                size="sm"
+  1981→  1981→                onClick={() => setWeekOffset(0)}
+  1982→  1982→              >
+  1983→  1983→                This Week
+  1984→  1984→              </Button>
+  1985→  1985→              <Button
+  1986→  1986→                variant="outline"
+  1987→  1987→                size="sm"
+  1988→  1988→                onClick={() => setWeekOffset((w) => w + 1)}
+  1989→  1989→              >
+  1990→  1990→                Next Week
+  1991→  1991→                <ChevronRight className="ml-1 h-4 w-4" />
+  1992→  1992→              </Button>
+  1993→  1993→            </div>
+  1994→  1994→          </div>
+  1995→  1995→        </CardContent>
+  1996→  1996→      </Card>
+  1997→  1997→
+  1998→  1998→      {/* Filters & Actions */}
+  1999→  1999→      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+  2000→  2000→        <Select
+
+[showing lines 1-2000 of 2002; use offset=2001 with limit to continue reading]

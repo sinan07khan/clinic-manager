@@ -249,7 +249,16 @@ export default function Dashboard() {
         if (res.ok) {
           const json = await res.json()
           if (json.data) {
-            setData(json.data)
+            setData({
+              stats: { ...emptyData.stats, ...(json.data?.stats ?? {}) },
+              weeklyRevenue: json.data?.weeklyRevenue ?? emptyData.weeklyRevenue,
+              recentAppointments: json.data?.recentAppointments ?? [],
+              lowStockItems: json.data?.lowStockItems ?? [],
+              doctorAttendance: json.data?.doctorAttendance ?? [],
+              upcomingAppointments: json.data?.upcomingAppointments ?? [],
+              departmentVisits: json.data?.departmentVisits ?? [],
+              appointmentStatus: json.data?.appointmentStatus ?? [],
+            })
           }
         }
       } catch {

@@ -556,7 +556,7 @@ export default function BillingModule() {
       const res = await fetch(`/api/invoices/${invoice.id}`)
       const data = await res.json()
       if (res.ok) {
-        setSelectedInvoice(data)
+        setSelectedInvoice({ ...data, payments: data.payments ?? [], items: data.items ?? [] })
       } else {
         toast.error("Failed to load invoice details")
       }
@@ -608,7 +608,7 @@ export default function BillingModule() {
         setPaymentDialogOpen(false)
         // Refresh detail
         const detailRes = await fetch(`/api/invoices/${selectedInvoice.id}`)
-        if (detailRes.ok) setSelectedInvoice(await detailRes.json())
+        if (detailRes.ok) { const detailData = await detailRes.json(); setSelectedInvoice({ ...detailData, payments: detailData.payments ?? [], items: detailData.items ?? [] }) }
         fetchInvoices()
         fetchPayments()
       } else {
@@ -1429,7 +1429,7 @@ export default function BillingModule() {
                   <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Appointment</p>
                   <p className="font-semibold">
                     {selectedInvoice.appointment
-                      ? `${format(new Date(selectedInvoice.appointment.date), "dd MMM yyyy")} — ${selectedInvoice.appointment.type}`
+                      ? `${format(new Date(selectedInvoice.appointment.date), "dd MMM yyyy")} — ${selectedInvoice.appointment?.type}`
                       : "N/A"}
                   </p>
                   {selectedInvoice.appointment?.doctor && (
