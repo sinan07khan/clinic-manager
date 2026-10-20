@@ -1,0 +1,863 @@
+     1→'use client'
+     2→
+     3→import { useEffect, useState, useMemo } from 'react'
+     4→import {
+     5→  DollarSign,
+     6→  TrendingUp,
+     7→  TrendingDown,
+     8→  Wallet,
+     9→  Percent,
+    10→  Calendar,
+    11→  Activity,
+    12→} from 'lucide-react'
+    13→import {
+    14→  Card,
+    15→  CardContent,
+    16→  CardDescription,
+    17→  CardHeader,
+    18→  CardTitle,
+    19→} from '@/components/ui/card'
+    20→import { Badge } from '@/components/ui/badge'
+    21→import { Button } from '@/components/ui/button'
+    22→import {
+    23→  Table,
+    24→  TableBody,
+    25→  TableCell,
+    26→  TableHead,
+    27→  TableHeader,
+    28→  TableRow,
+    29→} from '@/components/ui/table'
+    30→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    31→import {
+    32→  ChartContainer,
+    33→  ChartTooltip,
+    34→  ChartTooltipContent,
+    35→  ChartLegend,
+    36→  ChartLegendContent,
+    37→  type ChartConfig,
+    38→} from '@/components/ui/chart'
+    39→import {
+    40→  LineChart,
+    41→  Line,
+    42→  BarChart,
+    43→  Bar,
+    44→  PieChart,
+    45→  Pie,
+    46→  Cell,
+    47→  XAxis,
+    48→  YAxis,
+    49→  CartesianGrid,
+    50→} from 'recharts'
+    51→import { ScrollArea } from '@/components/ui/scroll-area'
+    52→import { cn } from '@/lib/utils'
+    53→
+    54→// ─── Types ───────────────────────────────────────────────────────────────────
+    55→
+    56→type DateRange = '7d' | '30d' | 'thisMonth' | 'lastMonth'
+    57→
+    58→interface FinancialSummary {
+    59→  totalRevenue: number
+    60→  totalExpenses: number
+    61→  netProfit: number
+    62→  profitMargin: number
+    63→}
+    64→
+    65→interface RevenueByDay {
+    66→  date: string
+    67→  revenue: number
+    68→}
+    69→
+    70→interface RevenueByService {
+    71→  service: string
+    72→  revenue: number
+    73→  fill: string
+    74→}
+    75→
+    76→interface MonthlyRevenue {
+    77→  month: string
+    78→  thisYear: number
+    79→  lastYear: number
+    80→}
+    81→
+    82→interface PatientVisitTrend {
+    83→  date: string
+    84→  newPatients: number
+    85→  returningPatients: number
+    86→}
+    87→
+    88→interface PatientDemographics {
+    89→  gender: string
+    90→  count: number
+    91→  fill: string
+    92→}
+    93→
+    94→interface DoctorPerformance {
+    95→  doctorName: string
+    96→  patients: number
+    97→  revenue: number
+    98→  avgRating: number
+    99→}
+   100→
+   101→interface DiagnosticTest {
+   102→  testName: string
+   103→  count: number
+   104→  revenue: number
+   105→}
+   106→
+   107→interface AnalyticsData {
+   108→  financialSummary: FinancialSummary
+   109→  revenueByDay: RevenueByDay[]
+   110→  revenueByService: RevenueByService[]
+   111→  monthlyRevenue: MonthlyRevenue[]
+   112→  patientVisitTrend: PatientVisitTrend[]
+   113→  patientDemographics: PatientDemographics[]
+   114→  doctorPerformance: DoctorPerformance[]
+   115→  diagnosticTests: DiagnosticTest[]
+   116→}
+   117→
+   118→// ─── Mock Data ───────────────────────────────────────────────────────────────
+   119→
+   120→function generateMockAnalytics(): Record<DateRange, AnalyticsData> {
+   121→  const days30 = Array.from({ length: 30 }, (_, i) => {
+   122→    const d = new Date()
+   123→    d.setDate(d.getDate() - (29 - i))
+   124→    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+   125→  })
+   126→
+   127→  const revenueByDay30 = days30.map((date) => ({
+   128→    date,
+   129→    revenue: Math.floor(50000 + Math.random() * 70000),
+   130→  }))
+   131→
+   132→  const patientVisitTrend30 = days30.map((date) => ({
+   133→    date,
+   134→    newPatients: Math.floor(3 + Math.random() * 10),
+   135→    returningPatients: Math.floor(5 + Math.random() * 15),
+   136→  }))
+   137→
+   138→  const revenueByDay7 = revenueByDay30.slice(-7)
+   139→  const patientVisitTrend7 = patientVisitTrend30.slice(-7)
+   140→
+   141→  const doctorPerformance = [
+   142→    { doctorName: 'Dr. Fatima Begum', patients: 156, revenue: 780000, avgRating: 4.8 },
+   143→    { doctorName: 'Dr. Ahmed Khan', patients: 132, revenue: 924000, avgRating: 4.9 },
+   144→    { doctorName: 'Dr. Nasreen Jahan', patients: 98, revenue: 588000, avgRating: 4.7 },
+   145→    { doctorName: 'Dr. Rafiq Islam', patients: 87, revenue: 609000, avgRating: 4.6 },
+   146→    { doctorName: 'Dr. Taslima Akhter', patients: 145, revenue: 435000, avgRating: 4.8 },
+   147→    { doctorName: 'Dr. Habibur Rahman', patients: 67, revenue: 268000, avgRating: 4.5 },
+   148→  ]
+   149→
+   150→  const diagnosticTests = [
+   151→    { testName: 'Complete Blood Count (CBC)', count: 245, revenue: 73500 },
+   152→    { testName: 'Blood Sugar (Fasting)', count: 198, revenue: 29700 },
+   153→    { testName: 'Lipid Profile', count: 156, revenue: 39000 },
+   154→    { testName: 'Liver Function Test', count: 134, revenue: 40200 },
+   155→    { testName: 'Thyroid Panel (TSH)', count: 112, revenue: 44800 },
+   156→    { testName: 'Urinalysis', count: 89, revenue: 8900 },
+   157→    { testName: 'X-Ray (Chest)', count: 67, revenue: 67000 },
+   158→    { testName: 'Ultrasound (Abdomen)', count: 45, revenue: 90000 },
+   159→  ]
+   160→
+   161→  const monthlyRevenue = [
+   162→    { month: 'Jan', thisYear: 1850000, lastYear: 1520000 },
+   163→    { month: 'Feb', thisYear: 2100000, lastYear: 1780000 },
+   164→    { month: 'Mar', thisYear: 1950000, lastYear: 1650000 },
+   165→    { month: 'Apr', thisYear: 2300000, lastYear: 1900000 },
+   166→    { month: 'May', thisYear: 2150000, lastYear: 1820000 },
+   167→    { month: 'Jun', thisYear: 2400000, lastYear: 2050000 },
+   168→  ]
+   169→
+   170→  const baseSummary = {
+   171→    totalRevenue: 2460000,
+   172→    totalExpenses: 890000,
+   173→    netProfit: 1570000,
+   174→    profitMargin: 63.8,
+   175→  }
+   176→
+   177→  return {
+   178→    '7d': {
+   179→      financialSummary: { ...baseSummary, totalRevenue: 576000, totalExpenses: 178000, netProfit: 398000, profitMargin: 69.1 },
+   180→      revenueByDay: revenueByDay7,
+   181→      revenueByService: [
+   182→        { service: 'Consultation', revenue: 288000, fill: 'var(--color-consultation)' },
+   183→        { service: 'Lab Tests', revenue: 173000, fill: 'var(--color-labtests)' },
+   184→        { service: 'Medicine', revenue: 115000, fill: 'var(--color-medicine)' },
+   185→      ],
+   186→      monthlyRevenue,
+   187→      patientVisitTrend: patientVisitTrend7,
+   188→      patientDemographics: [
+   189→        { gender: 'Male', count: 45, fill: 'var(--color-male)' },
+   190→        { gender: 'Female', count: 58, fill: 'var(--color-female)' },
+   191→        { gender: 'Other', count: 2, fill: 'var(--color-other)' },
+   192→      ],
+   193→      doctorPerformance,
+   194→      diagnosticTests,
+   195→    },
+   196→    '30d': {
+   197→      financialSummary: baseSummary,
+   198→      revenueByDay: revenueByDay30,
+   199→      revenueByService: [
+   200→        { service: 'Consultation', revenue: 1230000, fill: 'var(--color-consultation)' },
+   201→        { service: 'Lab Tests', revenue: 738000, fill: 'var(--color-labtests)' },
+   202→        { service: 'Medicine', revenue: 492000, fill: 'var(--color-medicine)' },
+   203→      ],
+   204→      monthlyRevenue,
+   205→      patientVisitTrend: patientVisitTrend30,
+   206→      patientDemographics: [
+   207→        { gender: 'Male', count: 187, fill: 'var(--color-male)' },
+   208→        { gender: 'Female', count: 223, fill: 'var(--color-female)' },
+   209→        { gender: 'Other', count: 8, fill: 'var(--color-other)' },
+   210→      ],
+   211→      doctorPerformance,
+   212→      diagnosticTests,
+   213→    },
+   214→    thisMonth: {
+   215→      financialSummary: { ...baseSummary, totalRevenue: 1920000, totalExpenses: 680000, netProfit: 1240000, profitMargin: 64.6 },
+   216→      revenueByDay: revenueByDay30.slice(-15),
+   217→      revenueByService: [
+   218→        { service: 'Consultation', revenue: 960000, fill: 'var(--color-consultation)' },
+   219→        { service: 'Lab Tests', revenue: 576000, fill: 'var(--color-labtests)' },
+   220→        { service: 'Medicine', revenue: 384000, fill: 'var(--color-medicine)' },
+   221→      ],
+   222→      monthlyRevenue,
+   223→      patientVisitTrend: patientVisitTrend30.slice(-15),
+   224→      patientDemographics: [
+   225→        { gender: 'Male', count: 134, fill: 'var(--color-male)' },
+   226→        { gender: 'Female', count: 168, fill: 'var(--color-female)' },
+   227→        { gender: 'Other', count: 5, fill: 'var(--color-other)' },
+   228→      ],
+   229→      doctorPerformance,
+   230→      diagnosticTests,
+   231→    },
+   232→    lastMonth: {
+   233→      financialSummary: { ...baseSummary, totalRevenue: 2150000, totalExpenses: 750000, netProfit: 1400000, profitMargin: 65.1 },
+   234→      revenueByDay: revenueByDay30,
+   235→      revenueByService: [
+   236→        { service: 'Consultation', revenue: 1075000, fill: 'var(--color-consultation)' },
+   237→        { service: 'Lab Tests', revenue: 645000, fill: 'var(--color-labtests)' },
+   238→        { service: 'Medicine', revenue: 430000, fill: 'var(--color-medicine)' },
+   239→      ],
+   240→      monthlyRevenue,
+   241→      patientVisitTrend: patientVisitTrend30,
+   242→      patientDemographics: [
+   243→        { gender: 'Male', count: 165, fill: 'var(--color-male)' },
+   244→        { gender: 'Female', count: 201, fill: 'var(--color-female)' },
+   245→        { gender: 'Other', count: 6, fill: 'var(--color-other)' },
+   246→      ],
+   247→      doctorPerformance,
+   248→      diagnosticTests,
+   249→    },
+   250→  }
+   251→}
+   252→
+   253→// ─── Chart Configs ───────────────────────────────────────────────────────────
+   254→
+   255→const revenueTrendConfig: ChartConfig = {
+   256→  revenue: {
+   257→    label: 'Revenue (BDT)',
+   258→    color: 'oklch(0.522 0.223 25)',
+   259→  },
+   260→}
+   261→
+   262→const serviceRevenueConfig: ChartConfig = {
+   263→  consultation: {
+   264→    label: 'Consultation',
+   265→    color: 'oklch(0.522 0.223 25)',
+   266→  },
+   267→  labtests: {
+   268→    label: 'Lab Tests',
+   269→    color: 'oklch(0.533 0.141 145)',
+   270→  },
+   271→  medicine: {
+   272→    label: 'Medicine',
+   273→    color: 'oklch(0.778 0.138 145)',
+   274→  },
+   275→}
+   276→
+   277→const monthlyRevenueConfig: ChartConfig = {
+   278→  thisYear: {
+   279→    label: 'This Year',
+   280→    color: 'oklch(0.522 0.223 25)',
+   281→  },
+   282→  lastYear: {
+   283→    label: 'Last Year',
+   284→    color: 'oklch(0.778 0.138 145)',
+   285→  },
+   286→}
+   287→
+   288→const patientTrendConfig: ChartConfig = {
+   289→  newPatients: {
+   290→    label: 'New Patients',
+   291→    color: 'oklch(0.723 0.219 149.579)',
+   292→  },
+   293→  returningPatients: {
+   294→    label: 'Returning Patients',
+   295→    color: 'oklch(0.533 0.141 145)',
+   296→  },
+   297→}
+   298→
+   299→const demographicsConfig: ChartConfig = {
+   300→  male: {
+   301→    label: 'Male',
+   302→    color: 'oklch(0.623 0.214 259.815)',
+   303→  },
+   304→  female: {
+   305→    label: 'Female',
+   306→    color: 'oklch(0.7 0.191 342.258)',
+   307→  },
+   308→  other: {
+   309→    label: 'Other',
+   310→    color: 'oklch(0.778 0.138 145)',
+   311→  },
+   312→}
+   313→
+   314→const doctorPatientsConfig: ChartConfig = {
+   315→  patients: {
+   316→    label: 'Patients',
+   317→    color: 'oklch(0.723 0.219 149.579)',
+   318→  },
+   319→}
+   320→
+   321→const doctorRevenueConfig: ChartConfig = {
+   322→  revenue: {
+   323→    label: 'Revenue (BDT)',
+   324→    color: 'oklch(0.522 0.223 25)',
+   325→  },
+   326→}
+   327→
+   328→const testCountConfig: ChartConfig = {
+   329→  count: {
+   330→    label: 'Tests Ordered',
+   331→    color: 'oklch(0.533 0.141 145)',
+   332→  },
+   333→}
+   334→
+   335→// ─── Helpers ─────────────────────────────────────────────────────────────────
+   336→
+   337→function formatBDT(amount: number): string {
+   338→  if (amount >= 100000) return `৳${(amount / 100000).toFixed(1)}L`
+   339→  return `৳${amount.toLocaleString('en-BD')}`
+   340→}
+   341→
+   342→function formatBDTFull(amount: number): string {
+   343→  return `৳${amount.toLocaleString('en-BD')}`
+   344→}
+   345→
+   346→const dateRangeLabels: Record<DateRange, string> = {
+   347→  '7d': 'Last 7 Days',
+   348→  '30d': 'Last 30 Days',
+   349→  thisMonth: 'This Month',
+   350→  lastMonth: 'Last Month',
+   351→}
+   352→
+   353→// ─── Component ───────────────────────────────────────────────────────────────
+   354→
+   355→export default function Analytics() {
+   356→  const [dateRange, setDateRange] = useState<DateRange>('30d')
+   357→  const [apiData, setApiData] = useState<AnalyticsData | null>(null)
+   358→  const [loading, setLoading] = useState(true)
+   359→  const mockData = useMemo(() => generateMockAnalytics(), [])
+   360→
+   361→  const data = apiData || mockData[dateRange]
+   362→
+   363→  useEffect(() => {
+   364→    async function fetchAnalytics() {
+   365→      setLoading(true)
+   366→      try {
+   367→        const res = await fetch(`/api/analytics?range=${dateRange}`)
+   368→        if (res.ok) {
+   369→          const json = await res.json()
+   370→          if (json.data) {
+   371→            setApiData({
+   372→              financialSummary: json.data.financialSummary ?? { totalRevenue: 0, totalExpenses: 0, netProfit: 0, profitMargin: 0 },
+   373→              revenueByDay: json.data.revenueByDay ?? [],
+   374→              revenueByService: json.data.revenueByService ?? [],
+   375→              monthlyRevenue: json.data.monthlyRevenue ?? [],
+   376→              patientVisitTrend: json.data.patientVisitTrend ?? [],
+   377→              patientDemographics: json.data.patientDemographics ?? [],
+   378→              doctorPerformance: json.data.doctorPerformance ?? [],
+   379→              diagnosticTests: json.data.diagnosticTests ?? [],
+   380→            })
+   381→          }
+   382→        }
+   383→      } catch {
+   384→        // Fallback to mock data
+   385→      } finally {
+   386→        setLoading(false)
+   387→      }
+   388→    }
+   389→    fetchAnalytics()
+   390→  }, [dateRange])
+   391→
+   392→  const summary = data.financialSummary
+   393→
+   394→  return (
+   395→    <div className="space-y-6">
+   396→      {/* Page Header */}
+   397→          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   398→        <div>
+   399→          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Analytics</h1>
+   400→          <p className="text-muted-foreground text-sm sm:text-base">Comprehensive insights into clinic performance</p>
+   401→        </div>
+   402→
+   403→        {/* Date Range Selector */}
+   404→        <div className="flex items-center gap-1 p-1 bg-muted rounded-lg">
+   405→          {(['7d', '30d', 'thisMonth', 'lastMonth'] as DateRange[]).map((range) => (
+   406→            <Button
+   407→              key={range}
+   408→              variant={dateRange === range ? 'default' : 'ghost'}
+   409→              size="sm"
+   410→              onClick={() => {
+   411→                setDateRange(range)
+   412→                setApiData(null)
+   413→              }}
+   414→              className={cn(
+   415→                'text-xs h-7 px-3',
+   416→                dateRange === range && 'bg-card shadow-sm text-foreground hover:bg-card hover:text-foreground'
+   417→              )}
+   418→            >
+   419→              {dateRangeLabels[range]}
+   420→            </Button>
+   421→          ))}
+   422→        </div>
+   423→      </div>
+   424→
+   425→      {loading ? (
+   426→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
+   427→          {[...Array(4)].map((_, i) => (
+   428→            <Card key={i} className="h-[120px] bg-muted/30" />
+   429→          ))}
+   430→        </div>
+   431→      ) : (
+   432→        <>
+   433→          {/* ── Financial Summary Cards ──────────────────────────────────── */}
+   434→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   435→            <Card className="bg-card rounded-xl border shadow-sm">
+   436→              <CardContent className="p-6">
+   437→                <div className="flex items-center justify-between">
+   438→                  <div className="space-y-1">
+   439→                    <p className="text-sm text-muted-foreground font-medium">Total Revenue</p>
+   440→                    <p className="text-2xl font-bold">{formatBDT(summary.totalRevenue)}</p>
+   441→                  </div>
+   442→                  <div className="h-11 w-11 rounded-xl bg-green-100 flex items-center justify-center">
+   443→                    <DollarSign className="h-5 w-5 text-green-700" />
+   444→                  </div>
+   445→                </div>
+   446→                <p className="text-xs text-green-700 mt-2 flex items-center gap-1">
+   447→                  <TrendingUp className="h-3 w-3" />
+   448→                  +12.5% from previous period
+   449→                </p>
+   450→              </CardContent>
+   451→            </Card>
+   452→
+   453→            <Card className="bg-card rounded-xl border shadow-sm">
+   454→              <CardContent className="p-6">
+   455→                <div className="flex items-center justify-between">
+   456→                  <div className="space-y-1">
+   457→                    <p className="text-sm text-muted-foreground font-medium">Total Expenses</p>
+   458→                    <p className="text-2xl font-bold">{formatBDT(summary.totalExpenses)}</p>
+   459→                  </div>
+   460→                  <div className="h-11 w-11 rounded-xl bg-rose-100 flex items-center justify-center">
+   461→                    <TrendingDown className="h-5 w-5 text-rose-600" />
+   462→                  </div>
+   463→                </div>
+   464→                <p className="text-xs text-rose-600 mt-2 flex items-center gap-1">
+   465→                  <TrendingDown className="h-3 w-3" />
+   466→                  +3.2% from previous period
+   467→                </p>
+   468→              </CardContent>
+   469→            </Card>
+   470→
+   471→            <Card className="bg-card rounded-xl border shadow-sm">
+   472→              <CardContent className="p-6">
+   473→                <div className="flex items-center justify-between">
+   474→                  <div className="space-y-1">
+   475→                    <p className="text-sm text-muted-foreground font-medium">Net Profit</p>
+   476→                    <p className="text-2xl font-bold">{formatBDT(summary.netProfit)}</p>
+   477→                  </div>
+   478→                  <div className="h-11 w-11 rounded-xl bg-green-100 flex items-center justify-center">
+   479→                    <Wallet className="h-5 w-5 text-green-700" />
+   480→                  </div>
+   481→                </div>
+   482→                <p className="text-xs text-green-700 mt-2 flex items-center gap-1">
+   483→                  <TrendingUp className="h-3 w-3" />
+   484→                  +15.8% from previous period
+   485→                </p>
+   486→              </CardContent>
+   487→            </Card>
+   488→
+   489→            <Card className="bg-card rounded-xl border shadow-sm">
+   490→              <CardContent className="p-6">
+   491→                <div className="flex items-center justify-between">
+   492→                  <div className="space-y-1">
+   493→                    <p className="text-sm text-muted-foreground font-medium">Profit Margin</p>
+   494→                    <p className="text-2xl font-bold">{summary.profitMargin.toFixed(1)}%</p>
+   495→                  </div>
+   496→                  <div className="h-11 w-11 rounded-xl bg-amber-100 flex items-center justify-center">
+   497→                    <Percent className="h-5 w-5 text-amber-600" />
+   498→                  </div>
+   499→                </div>
+   500→                <p className="text-xs text-green-700 mt-2 flex items-center gap-1">
+   501→                  <TrendingUp className="h-3 w-3" />
+   502→                  +2.1% from previous period
+   503→                </p>
+   504→              </CardContent>
+   505→            </Card>
+   506→          </div>
+   507→
+   508→          {/* ── Tabs for Analytics Sections ──────────────────────────────── */}
+   509→          <Tabs defaultValue="revenue" className="space-y-6">
+   510→            <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+   511→              <TabsTrigger value="revenue">Revenue</TabsTrigger>
+   512→              <TabsTrigger value="patients">Patients</TabsTrigger>
+   513→              <TabsTrigger value="doctors">Doctors</TabsTrigger>
+   514→              <TabsTrigger value="diagnostics">Diagnostics</TabsTrigger>
+   515→            </TabsList>
+   516→
+   517→            {/* ─── Revenue Tab ────────────────────────────────────────────── */}
+   518→            <TabsContent value="revenue" className="space-y-6">
+   519→              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   520→                {/* Revenue Trend */}
+   521→                <Card className="bg-card rounded-xl border shadow-sm lg:col-span-2">
+   522→                  <CardHeader className="pb-2">
+   523→                    <CardTitle className="text-base font-semibold">Revenue Trend</CardTitle>
+   524→                    <CardDescription>Daily revenue for the selected period</CardDescription>
+   525→                  </CardHeader>
+   526→                  <CardContent className="pt-4">
+   527→                    <ChartContainer config={revenueTrendConfig} className="h-[300px] w-full">
+   528→                      <LineChart data={data.revenueByDay} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+   529→                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+   530→                        <XAxis dataKey="date" className="text-xs" tickLine={false} axisLine={false} />
+   531→                        <YAxis className="text-xs" tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+   532→                        <ChartTooltip content={<ChartTooltipContent />} />
+   533→                        <Line
+   534→                          type="monotone"
+   535→                          dataKey="revenue"
+   536→                          stroke="var(--color-revenue)"
+   537→                          strokeWidth={2}
+   538→                          dot={false}
+   539→                          activeDot={{ r: 5 }}
+   540→                        />
+   541→                      </LineChart>
+   542→                    </ChartContainer>
+   543→                  </CardContent>
+   544→                </Card>
+   545→
+   546→                {/* Revenue by Service */}
+   547→                <Card className="bg-card rounded-xl border shadow-sm">
+   548→                  <CardHeader className="pb-2">
+   549→                    <CardTitle className="text-base font-semibold">Revenue by Service</CardTitle>
+   550→                    <CardDescription>Distribution across service types</CardDescription>
+   551→                  </CardHeader>
+   552→                  <CardContent className="pt-4">
+   553→                    <ChartContainer config={serviceRevenueConfig} className="h-[300px] w-full">
+   554→                      <PieChart>
+   555→                        <ChartTooltip content={<ChartTooltipContent nameKey="service" hideLabel />} />
+   556→                        <Pie
+   557→                          data={data.revenueByService}
+   558→                          dataKey="revenue"
+   559→                          nameKey="service"
+   560→                          cx="50%"
+   561→                          cy="50%"
+   562→                          innerRadius={55}
+   563→                          outerRadius={90}
+   564→                          strokeWidth={2}
+   565→                          stroke="white"
+   566→                        >
+   567→                          {data.revenueByService.map((entry, index) => (
+   568→                            <Cell key={`cell-${index}`} fill={entry.fill} />
+   569→                          ))}
+   570→                        </Pie>
+   571→                        <ChartLegend content={<ChartLegendContent nameKey="service" />} />
+   572→                      </PieChart>
+   573→                    </ChartContainer>
+   574→                  </CardContent>
+   575→                </Card>
+   576→              </div>
+   577→
+   578→              {/* Monthly Revenue Comparison */}
+   579→              <Card className="bg-card rounded-xl border shadow-sm">
+   580→                <CardHeader className="pb-2">
+   581→                  <CardTitle className="text-base font-semibold">Monthly Revenue Comparison</CardTitle>
+   582→                  <CardDescription>This year vs. last year</CardDescription>
+   583→                </CardHeader>
+   584→                <CardContent className="pt-4">
+   585→                  <ChartContainer config={monthlyRevenueConfig} className="h-[300px] w-full">
+   586→                    <BarChart data={data.monthlyRevenue} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+   587→                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+   588→                      <XAxis dataKey="month" className="text-xs" tickLine={false} axisLine={false} />
+   589→                      <YAxis className="text-xs" tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 100000).toFixed(0)}L`} />
+   590→                      <ChartTooltip content={<ChartTooltipContent />} />
+   591→                      <ChartLegend content={<ChartLegendContent />} />
+   592→                      <Bar dataKey="thisYear" fill="var(--color-thisYear)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+   593→                      <Bar dataKey="lastYear" fill="var(--color-lastYear)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+   594→                    </BarChart>
+   595→                  </ChartContainer>
+   596→                </CardContent>
+   597→              </Card>
+   598→            </TabsContent>
+   599→
+   600→            {/* ─── Patients Tab ───────────────────────────────────────────── */}
+   601→            <TabsContent value="patients" className="space-y-6">
+   602→              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   603→                {/* Patient Visit Trend */}
+   604→                <Card className="bg-card rounded-xl border shadow-sm lg:col-span-2">
+   605→                  <CardHeader className="pb-2">
+   606→                    <CardTitle className="text-base font-semibold">Patient Visits Trend</CardTitle>
+   607→                    <CardDescription>New vs returning patients</CardDescription>
+   608→                  </CardHeader>
+   609→                  <CardContent className="pt-4">
+   610→                    <ChartContainer config={patientTrendConfig} className="h-[300px] w-full">
+   611→                      <LineChart data={data.patientVisitTrend} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+   612→                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+   613→                        <XAxis dataKey="date" className="text-xs" tickLine={false} axisLine={false} />
+   614→                        <YAxis className="text-xs" tickLine={false} axisLine={false} />
+   615→                        <ChartTooltip content={<ChartTooltipContent />} />
+   616→                        <ChartLegend content={<ChartLegendContent />} />
+   617→                        <Line type="monotone" dataKey="newPatients" stroke="var(--color-newPatients)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+   618→                        <Line type="monotone" dataKey="returningPatients" stroke="var(--color-returningPatients)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+   619→                      </LineChart>
+   620→                    </ChartContainer>
+   621→                  </CardContent>
+   622→                </Card>
+   623→
+   624→                {/* Patient Demographics */}
+   625→                <Card className="bg-card rounded-xl border shadow-sm">
+   626→                  <CardHeader className="pb-2">
+   627→                    <CardTitle className="text-base font-semibold">Patient Demographics</CardTitle>
+   628→                    <CardDescription>Gender distribution</CardDescription>
+   629→                  </CardHeader>
+   630→                  <CardContent className="pt-4">
+   631→                    <ChartContainer config={demographicsConfig} className="h-[300px] w-full">
+   632→                      <PieChart>
+   633→                        <ChartTooltip content={<ChartTooltipContent nameKey="gender" hideLabel />} />
+   634→                        <Pie
+   635→                          data={data.patientDemographics}
+   636→                          dataKey="count"
+   637→                          nameKey="gender"
+   638→                          cx="50%"
+   639→                          cy="50%"
+   640→                          innerRadius={55}
+   641→                          outerRadius={90}
+   642→                          strokeWidth={2}
+   643→                          stroke="white"
+   644→                        >
+   645→                          {data.patientDemographics.map((entry, index) => (
+   646→                            <Cell key={`cell-${index}`} fill={entry.fill} />
+   647→                          ))}
+   648→                        </Pie>
+   649→                        <ChartLegend content={<ChartLegendContent nameKey="gender" />} />
+   650→                      </PieChart>
+   651→                    </ChartContainer>
+   652→                  </CardContent>
+   653→                </Card>
+   654→              </div>
+   655→
+   656→              {/* Patient Stats Summary */}
+   657→              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   658→                <Card className="bg-card rounded-xl border shadow-sm">
+   659→                  <CardContent className="p-6 text-center">
+   660→                    <div className="h-10 w-10 mx-auto rounded-xl bg-green-100 flex items-center justify-center mb-3">
+   661→                      <Activity className="h-5 w-5 text-green-700" />
+   662→                    </div>
+   663→                    <p className="text-2xl font-bold">
+   664→                      {data.patientVisitTrend.reduce((a, b) => a + b.newPatients + b.returningPatients, 0)}
+   665→                    </p>
+   666→                    <p className="text-sm text-muted-foreground mt-1">Total Patient Visits</p>
+   667→                  </CardContent>
+   668→                </Card>
+   669→                <Card className="bg-card rounded-xl border shadow-sm">
+   670→                  <CardContent className="p-6 text-center">
+   671→                    <div className="h-10 w-10 mx-auto rounded-xl bg-green-100 flex items-center justify-center mb-3">
+   672→                      <Calendar className="h-5 w-5 text-green-700" />
+   673→                    </div>
+   674→                    <p className="text-2xl font-bold">
+   675→                      {data.patientVisitTrend.reduce((a, b) => a + b.newPatients, 0)}
+   676→                    </p>
+   677→                    <p className="text-sm text-muted-foreground mt-1">New Patients</p>
+   678→                  </CardContent>
+   679→                </Card>
+   680→                <Card className="bg-card rounded-xl border shadow-sm">
+   681→                  <CardContent className="p-6 text-center">
+   682→                    <div className="h-10 w-10 mx-auto rounded-xl bg-violet-100 flex items-center justify-center mb-3">
+   683→                      <Activity className="h-5 w-5 text-violet-600" />
+   684→                    </div>
+   685→                    <p className="text-2xl font-bold">
+   686→                      {data.patientVisitTrend.reduce((a, b) => a + b.returningPatients, 0)}
+   687→                    </p>
+   688→                    <p className="text-sm text-muted-foreground mt-1">Returning Patients</p>
+   689→                  </CardContent>
+   690→                </Card>
+   691→              </div>
+   692→            </TabsContent>
+   693→
+   694→            {/* ─── Doctors Tab ────────────────────────────────────────────── */}
+   695→            <TabsContent value="doctors" className="space-y-6">
+   696→              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   697→                {/* Patients per Doctor */}
+   698→                <Card className="bg-card rounded-xl border shadow-sm">
+   699→                  <CardHeader className="pb-2">
+   700→                    <CardTitle className="text-base font-semibold">Patients per Doctor</CardTitle>
+   701→                    <CardDescription>Number of patients handled</CardDescription>
+   702→                  </CardHeader>
+   703→                  <CardContent className="pt-4">
+   704→                    <ChartContainer config={doctorPatientsConfig} className="h-[250px] sm:h-[300px] w-full">
+   705→                      <BarChart data={data.doctorPerformance} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+   706→                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+   707→                        <XAxis type="number" className="text-xs" tickLine={false} axisLine={false} />
+   708→                        <YAxis dataKey="doctorName" type="category" className="text-xs" tickLine={false} axisLine={false} width={120} />
+   709→                        <ChartTooltip content={<ChartTooltipContent />} />
+   710→                        <Bar dataKey="patients" fill="var(--color-patients)" radius={[0, 6, 6, 0]} maxBarSize={24} />
+   711→                      </BarChart>
+   712→                    </ChartContainer>
+   713→                  </CardContent>
+   714→                </Card>
+   715→
+   716→                {/* Revenue per Doctor */}
+   717→                <Card className="bg-card rounded-xl border shadow-sm">
+   718→                  <CardHeader className="pb-2">
+   719→                    <CardTitle className="text-base font-semibold">Revenue per Doctor</CardTitle>
+   720→                    <CardDescription>Revenue generated by each doctor</CardDescription>
+   721→                  </CardHeader>
+   722→                  <CardContent className="pt-4">
+   723→                    <ChartContainer config={doctorRevenueConfig} className="h-[250px] sm:h-[300px] w-full">
+   724→                      <BarChart data={data.doctorPerformance} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+   725→                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+   726→                        <XAxis type="number" className="text-xs" tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+   727→                        <YAxis dataKey="doctorName" type="category" className="text-xs" tickLine={false} axisLine={false} width={120} />
+   728→                        <ChartTooltip content={<ChartTooltipContent />} />
+   729→                        <Bar dataKey="revenue" fill="var(--color-revenue)" radius={[0, 6, 6, 0]} maxBarSize={24} />
+   730→                      </BarChart>
+   731→                    </ChartContainer>
+   732→                  </CardContent>
+   733→                </Card>
+   734→              </div>
+   735→
+   736→              {/* Doctor Performance Table */}
+   737→              <Card className="bg-card rounded-xl border shadow-sm">
+   738→                <CardHeader className="pb-3">
+   739→                  <CardTitle className="text-base font-semibold">Doctor Performance Summary</CardTitle>
+   740→                  <CardDescription>Detailed breakdown of doctor metrics</CardDescription>
+   741→                </CardHeader>
+   742→                <CardContent>
+   743→                  <div className="overflow-x-auto -mx-6"><Table>
+   744→                    <TableHeader>
+   745→                      <TableRow className="hover:bg-transparent">
+   746→                        <TableHead className="text-xs font-semibold">Doctor</TableHead>
+   747→                        <TableHead className="text-xs font-semibold text-right">Patients</TableHead>
+   748→                        <TableHead className="text-xs font-semibold text-right">Revenue</TableHead>
+   749→                        <TableHead className="text-xs font-semibold text-right">Avg Rating</TableHead>
+   750→                        <TableHead className="text-xs font-semibold text-right">Revenue/Patient</TableHead>
+   751→                      </TableRow>
+   752→                    </TableHeader>
+   753→                    <TableBody>
+   754→                      {data.doctorPerformance.map((doc, idx) => (
+   755→                        <TableRow key={idx} className="hover:bg-muted/50 transition-colors">
+   756→                          <TableCell className="font-medium text-sm">{doc.doctorName}</TableCell>
+   757→                          <TableCell className="text-sm text-right">{doc.patients}</TableCell>
+   758→                          <TableCell className="text-sm text-right font-mono">{formatBDTFull(doc.revenue)}</TableCell>
+   759→                          <TableCell className="text-sm text-right">
+   760→                            <div className="flex items-center justify-end gap-1.5">
+   761→                              <span className="text-amber-500">★</span>
+   762→                              <span>{doc.avgRating.toFixed(1)}</span>
+   763→                            </div>
+   764→                          </TableCell>
+   765→                          <TableCell className="text-sm text-right font-mono text-muted-foreground">
+   766→                            {formatBDTFull(Math.round(doc.revenue / doc.patients))}
+   767→                          </TableCell>
+   768→                        </TableRow>
+   769→                      ))}
+   770→                    </TableBody>
+   771→                  </Table></div>
+   772→                </CardContent>
+   773→              </Card>
+   774→            </TabsContent>
+   775→
+   776→            {/* ─── Diagnostics Tab ────────────────────────────────────────── */}
+   777→            <TabsContent value="diagnostics" className="space-y-6">
+   778→              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   779→                {/* Most Ordered Tests */}
+   780→                <Card className="bg-card rounded-xl border shadow-sm">
+   781→                  <CardHeader className="pb-2">
+   782→                    <CardTitle className="text-base font-semibold">Most Ordered Tests</CardTitle>
+   783→                    <CardDescription>Test ordering frequency</CardDescription>
+   784→                  </CardHeader>
+   785→                  <CardContent className="pt-4">
+   786→                    <ChartContainer config={testCountConfig} className="h-[280px] sm:h-[350px] w-full">
+   787→                      <BarChart data={data.diagnosticTests} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+   788→                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+   789→                        <XAxis type="number" className="text-xs" tickLine={false} axisLine={false} />
+   790→                        <YAxis dataKey="testName" type="category" className="text-xs" tickLine={false} axisLine={false} width={120} />
+   791→                        <ChartTooltip content={<ChartTooltipContent />} />
+   792→                        <Bar dataKey="count" fill="var(--color-count)" radius={[0, 6, 6, 0]} maxBarSize={22} />
+   793→                      </BarChart>
+   794→                    </ChartContainer>
+   795→                  </CardContent>
+   796→                </Card>
+   797→
+   798→                {/* Test Revenue Distribution */}
+   799→                <Card className="bg-card rounded-xl border shadow-sm">
+   800→                  <CardHeader className="pb-3">
+   801→                    <CardTitle className="text-base font-semibold">Test-wise Income</CardTitle>
+   802→                    <CardDescription>Revenue from diagnostic tests</CardDescription>
+   803→                  </CardHeader>
+   804→                  <CardContent>
+   805→                    <ScrollArea className="h-[350px]">
+   806→                      <div className="overflow-x-auto"><Table>
+   807→                        <TableHeader>
+   808→                          <TableRow className="hover:bg-transparent">
+   809→                            <TableHead className="text-xs font-semibold">Test Name</TableHead>
+   810→                            <TableHead className="text-xs font-semibold text-right">Ordered</TableHead>
+   811→                            <TableHead className="text-xs font-semibold text-right">Revenue</TableHead>
+   812→                            <TableHead className="text-xs font-semibold text-right">Avg/Test</TableHead>
+   813→                          </TableRow>
+   814→                        </TableHeader>
+   815→                        <TableBody>
+   816→                          {data.diagnosticTests.map((test, idx) => (
+   817→                            <TableRow key={idx} className="hover:bg-muted/50 transition-colors">
+   818→                              <TableCell className="text-sm font-medium">{test.testName}</TableCell>
+   819→                              <TableCell className="text-sm text-right">
+   820→                                <Badge variant="secondary" className="font-mono text-xs">{test.count}</Badge>
+   821→                              </TableCell>
+   822→                              <TableCell className="text-sm text-right font-mono">{formatBDTFull(test.revenue)}</TableCell>
+   823→                              <TableCell className="text-sm text-right font-mono text-muted-foreground">
+   824→                                {formatBDTFull(Math.round(test.revenue / test.count))}
+   825→                              </TableCell>
+   826→                            </TableRow>
+   827→                          ))}
+   828→                        </TableBody>
+   829→                      </Table></div>
+   830→                    </ScrollArea>
+   831→                  </CardContent>
+   832→                </Card>
+   833→              </div>
+   834→
+   835→              {/* Diagnostic Summary */}
+   836→              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   837→                <Card className="bg-card rounded-xl border shadow-sm">
+   838→                  <CardContent className="p-6 text-center">
+   839→                    <p className="text-2xl font-bold">{data.diagnosticTests.reduce((a, b) => a + b.count, 0)}</p>
+   840→                    <p className="text-sm text-muted-foreground mt-1">Total Tests Ordered</p>
+   841→                  </CardContent>
+   842→                </Card>
+   843→                <Card className="bg-card rounded-xl border shadow-sm">
+   844→                  <CardContent className="p-6 text-center">
+   845→                    <p className="text-2xl font-bold">{formatBDT(data.diagnosticTests.reduce((a, b) => a + b.revenue, 0))}</p>
+   846→                    <p className="text-sm text-muted-foreground mt-1">Total Diagnostic Revenue</p>
+   847→                  </CardContent>
+   848→                </Card>
+   849→                <Card className="bg-card rounded-xl border shadow-sm">
+   850→                  <CardContent className="p-6 text-center">
+   851→                    <p className="text-2xl font-bold">{formatBDTFull(Math.round(data.diagnosticTests.reduce((a, b) => a + b.revenue, 0) / (data.diagnosticTests.reduce((a, b) => a + b.count, 0) || 1)))}</p>
+   852→                    <p className="text-sm text-muted-foreground mt-1">Average Revenue per Test</p>
+   853→                  </CardContent>
+   854→                </Card>
+   855→              </div>
+   856→            </TabsContent>
+   857→          </Tabs>
+   858→        </>
+   859→      )}
+   860→    </div>
+   861→  )
+   862→}
+   863→

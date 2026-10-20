@@ -1,25 +1,36 @@
 ---
 Task ID: 1
 Agent: main
-Task: Fix and publish the Oxygen Health Care project
+Task: Remove all user data and make web app fresh as new
 
 Work Log:
-- Diagnosed root cause: Prisma client not generated (`@prisma/client did not initialize yet` error)
-- Fixed Prisma generation by working around `.config` file conflict (JuiceFS system file)
-- Ran `prisma generate` and `prisma db push` successfully
-- Fixed dashboard SQL query: replaced `strftime('%a', ...)` (not supported in SQLite) with CASE statement using `strftime('%w', ...)` for day names
-- Fixed crash bugs in patients-module.tsx: added `?? []` defaults for appointments, prescriptions, labReports, invoices
-- Fixed crash bugs in dashboard.tsx: added defensive merge with emptyData defaults for API response
-- Fixed crash bugs in analytics.tsx: added defensive defaults for API data and division-by-zero guard
-- Fixed crash bugs in billing-module.tsx: added `?? []` defaults for payments, items, and optional chaining for appointment
-- Fixed crash bugs in inventory-module.tsx: added `?? []` defaults for items, purchaseOrders in supplier detail
-- Verified all 14 API routes return 200 status
-- Verified all 8 modules work correctly in browser (Dashboard, Patients, Appointments, Billing, Diagnostics, Inventory, HR, Analytics)
-- Verified Diagnostics & Lab module specifically: all 3 tabs (Lab Reports, Sample Tracking, Test Types) work with proper empty states
-- No lint errors, no console errors
+- Checked current database state - found stale data in SQLite database
+- Deleted and recreated the database with fresh schema (prisma db push)
+- Ran seed script (prisma/seed.ts) which clears all data and creates only admin account
+- Verified seed output: admin@oxygen.com / admin123, role SUPER_ADMIN
+- Fixed analytics.tsx: Added ChartEmptyState component, wrapped 8 charts with empty data guards, fixed 2 division-by-zero bugs
+- Fixed inventory-module.tsx: Fixed StockLevelBar division-by-zero when minStock === 0
+- Verified all other modules already handle empty data gracefully (dashboard, patients, appointments, billing, hr, diagnostics, doctor-schedule)
+- Ran lint check - passes with zero errors
+- Tested all API endpoints with empty database:
+  - Dashboard API: ✅ Returns zero stats and empty arrays
+  - Patients API: ✅ Returns total: 0
+  - Staff API: ✅ Returns 1 admin only
+  - Analytics API: ✅ Returns empty data
+  - Lab Reports API: ✅ Returns empty array
+  - Test Types API: ✅ Returns empty array
+  - Inventory API: ✅ Returns empty array
+  - Appointments API: ✅ Returns empty array
+  - Invoices API: ✅ Returns empty with pagination
+  - Auth Session API: ✅ Works correctly
+- Verified login page renders correctly with Oxygen Health Care branding
+- Removed temporary files (run-server.js, keep-alive.sh, test screenshots)
 
 Stage Summary:
-- Root cause of all 500 errors: Prisma client not generated
-- Root cause of day:"null" in dashboard: SQLite strftime('%a') not supported
-- All modules now handle empty data gracefully with defensive defaults
-- App is fully functional and ready for use
+- Database is completely fresh: only 1 admin account (admin@oxygen.com / admin123)
+- All 17 tables are empty except Staff (1 admin row)
+- All modules handle empty data gracefully with proper empty states
+- All API endpoints return proper empty responses
+- Code quality: lint passes with zero errors
+- Login page renders correctly with Oxygen Health Care branding
+- The app is ready for the user to add their own data

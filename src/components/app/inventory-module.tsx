@@ -109,7 +109,7 @@ function getCategoryBadge(category: string) {
 }
 
 function StockLevelBar({ quantity, minStock }: { quantity: number; minStock: number }) {
-  const percentage = Math.min((quantity / (minStock * 2)) * 100, 100)
+  const percentage = minStock > 0 ? Math.min((quantity / (minStock * 2)) * 100, 100) : (quantity > 0 ? 100 : 0)
   const isLow = quantity < minStock
   const isCritical = quantity === 0
 

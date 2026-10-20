@@ -1,0 +1,657 @@
+     1→'use client'
+     2→
+     3→import { useEffect, useState } from 'react'
+     4→import {
+     5→  CalendarCheck,
+     6→  Users,
+     7→  DollarSign,
+     8→  TrendingDown,
+     9→  AlertTriangle,
+    10→  Clock,
+    11→  UserCheck,
+    12→  Activity,
+    13→  Inbox,
+    14→  CheckCircle2,
+    15→} from 'lucide-react'
+    16→import {
+    17→  Card,
+    18→  CardContent,
+    19→  CardDescription,
+    20→  CardHeader,
+    21→  CardTitle,
+    22→} from '@/components/ui/card'
+    23→import { Badge } from '@/components/ui/badge'
+    24→import {
+    25→  Table,
+    26→  TableBody,
+    27→  TableCell,
+    28→  TableHead,
+    29→  TableHeader,
+    30→  TableRow,
+    31→} from '@/components/ui/table'
+    32→import {
+    33→  ChartContainer,
+    34→  ChartTooltip,
+    35→  ChartTooltipContent,
+    36→  ChartLegend,
+    37→  ChartLegendContent,
+    38→  type ChartConfig,
+    39→} from '@/components/ui/chart'
+    40→import {
+    41→  LineChart,
+    42→  Line,
+    43→  BarChart,
+    44→  Bar,
+    45→  PieChart,
+    46→  Pie,
+    47→  Cell,
+    48→  XAxis,
+    49→  YAxis,
+    50→  CartesianGrid,
+    51→} from 'recharts'
+    52→import { Progress } from '@/components/ui/progress'
+    53→import { ScrollArea } from '@/components/ui/scroll-area'
+    54→
+    55→// ─── Types ───────────────────────────────────────────────────────────────────
+    56→
+    57→interface DashboardStats {
+    58→  todayAppointments: number
+    59→  todayPatients: number
+    60→  todayRevenue: number
+    61→  todayExpenses: number
+    62→}
+    63→
+    64→interface RecentAppointment {
+    65→  id: string
+    66→  patientName: string
+    67→  doctorName: string
+    68→  time: string
+    69→  status: 'BOOKED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'
+    70→  type: string
+    71→}
+    72→
+    73→interface LowStockItem {
+    74→  id: string
+    75→  name: string
+    76→  category: string
+    77→  quantity: number
+    78→  minStock: number
+    79→}
+    80→
+    81→interface DoctorAttendance {
+    82→  id: string
+    83→  doctorName: string
+    84→  department: string
+    85→  specialization: string
+    86→  status: 'PRESENT' | 'ABSENT' | 'LATE' | 'LEAVE' | 'HALF_DAY'
+    87→  checkIn?: string
+    88→}
+    89→
+    90→interface UpcomingAppointment {
+    91→  id: string
+    92→  patientName: string
+    93→  doctorName: string
+    94→  date: string
+    95→  time: string
+    96→  type: string
+    97→}
+    98→
+    99→interface WeeklyRevenue {
+   100→  day: string
+   101→  revenue: number
+   102→}
+   103→
+   104→interface DepartmentVisits {
+   105→  department: string
+   106→  visits: number
+   107→}
+   108→
+   109→interface AppointmentStatus {
+   110→  status: string
+   111→  count: number
+   112→  fill: string
+   113→}
+   114→
+   115→interface DashboardData {
+   116→  stats: DashboardStats
+   117→  recentAppointments: RecentAppointment[]
+   118→  lowStockItems: LowStockItem[]
+   119→  doctorAttendance: DoctorAttendance[]
+   120→  upcomingAppointments: UpcomingAppointment[]
+   121→  weeklyRevenue: WeeklyRevenue[]
+   122→  departmentVisits: DepartmentVisits[]
+   123→  appointmentStatus: AppointmentStatus[]
+   124→}
+   125→
+   126→// ─── Empty State Data ────────────────────────────────────────────────────────
+   127→
+   128→const emptyData: DashboardData = {
+   129→  stats: {
+   130→    todayAppointments: 0,
+   131→    todayPatients: 0,
+   132→    todayRevenue: 0,
+   133→    todayExpenses: 0,
+   134→  },
+   135→  recentAppointments: [],
+   136→  lowStockItems: [],
+   137→  doctorAttendance: [],
+   138→  upcomingAppointments: [],
+   139→  weeklyRevenue: Array.from({ length: 7 }, (_, i) => {
+   140→    const d = new Date()
+   141→    d.setDate(d.getDate() - (6 - i))
+   142→    return { day: d.toLocaleDateString('en-US', { weekday: 'short' }), revenue: 0 }
+   143→  }),
+   144→  departmentVisits: [],
+   145→  appointmentStatus: [],
+   146→}
+   147→
+   148→// ─── Chart Configs ───────────────────────────────────────────────────────────
+   149→
+   150→const revenueChartConfig: ChartConfig = {
+   151→  revenue: {
+   152→    label: 'Revenue (BDT)',
+   153→    color: 'oklch(0.522 0.223 25)',
+   154→  },
+   155→}
+   156→
+   157→const departmentChartConfig: ChartConfig = {
+   158→  visits: {
+   159→    label: 'Patient Visits',
+   160→    color: 'oklch(0.723 0.219 149.579)',
+   161→  },
+   162→}
+   163→
+   164→const appointmentChartConfig: ChartConfig = {
+   165→  completed: {
+   166→    label: 'Completed',
+   167→    color: 'oklch(0.522 0.223 25)',
+   168→  },
+   169→  confirmed: {
+   170→    label: 'Confirmed',
+   171→    color: 'oklch(0.533 0.141 145)',
+   172→  },
+   173→  booked: {
+   174→    label: 'Booked',
+   175→    color: 'oklch(0.778 0.138 145)',
+   176→  },
+   177→  cancelled: {
+   178→    label: 'Cancelled',
+   179→    color: 'oklch(0.577 0.245 27.325)',
+   180→  },
+   181→  noshow: {
+   182→    label: 'No Show',
+   183→    color: 'oklch(0.556 0 0)',
+   184→  },
+   185→}
+   186→
+   187→// ─── Helpers ─────────────────────────────────────────────────────────────────
+   188→
+   189→function getStatusBadge(status: string) {
+   190→  switch (status) {
+   191→    case 'COMPLETED':
+   192→      return <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-green-200">Completed</Badge>
+   193→    case 'CONFIRMED':
+   194→      return <Badge className="bg-violet-100 text-violet-700 hover:bg-violet-100 border-violet-200">Confirmed</Badge>
+   195→    case 'BOOKED':
+   196→      return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200">Booked</Badge>
+   197→    case 'CANCELLED':
+   198→      return <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200">Cancelled</Badge>
+   199→    case 'NO_SHOW':
+   200→      return <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 border-gray-200">No Show</Badge>
+   201→    default:
+   202→      return <Badge variant="secondary">{status}</Badge>
+   203→  }
+   204→}
+   205→
+   206→function getAttendanceBadge(status: string) {
+   207→  switch (status) {
+   208→    case 'PRESENT':
+   209→      return <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-green-200">Present</Badge>
+   210→    case 'ABSENT':
+   211→      return <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200">Absent</Badge>
+   212→    case 'LATE':
+   213→      return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200">Late</Badge>
+   214→    case 'LEAVE':
+   215→      return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200">On Leave</Badge>
+   216→    case 'HALF_DAY':
+   217→      return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-orange-200">Half Day</Badge>
+   218→    default:
+   219→      return <Badge variant="secondary">{status}</Badge>
+   220→  }
+   221→}
+   222→
+   223→function formatBDT(amount: number): string {
+   224→  return `৳${amount.toLocaleString('en-BD')}`
+   225→}
+   226→
+   227→// ─── Empty State Component ───────────────────────────────────────────────────
+   228→
+   229→function EmptyState({ title, description }: { title: string; description: string }) {
+   230→  return (
+   231→    <div className="flex flex-col items-center justify-center py-8 text-center">
+   232→      <Inbox className="size-10 text-muted-foreground/40 mb-3" />
+   233→      <p className="text-sm font-medium text-muted-foreground">{title}</p>
+   234→      <p className="text-xs text-muted-foreground/70 mt-1">{description}</p>
+   235→    </div>
+   236→  )
+   237→}
+   238→
+   239→// ─── Component ───────────────────────────────────────────────────────────────
+   240→
+   241→export default function Dashboard() {
+   242→  const [data, setData] = useState<DashboardData>(emptyData)
+   243→  const [loading, setLoading] = useState(true)
+   244→
+   245→  useEffect(() => {
+   246→    async function fetchDashboard() {
+   247→      try {
+   248→        const res = await fetch('/api/dashboard')
+   249→        if (res.ok) {
+   250→          const json = await res.json()
+   251→          if (json.data) {
+   252→            setData({
+   253→              stats: { ...emptyData.stats, ...(json.data?.stats ?? {}) },
+   254→              weeklyRevenue: json.data?.weeklyRevenue ?? emptyData.weeklyRevenue,
+   255→              recentAppointments: json.data?.recentAppointments ?? [],
+   256→              lowStockItems: json.data?.lowStockItems ?? [],
+   257→              doctorAttendance: json.data?.doctorAttendance ?? [],
+   258→              upcomingAppointments: json.data?.upcomingAppointments ?? [],
+   259→              departmentVisits: json.data?.departmentVisits ?? [],
+   260→              appointmentStatus: json.data?.appointmentStatus ?? [],
+   261→            })
+   262→          }
+   263→        }
+   264→      } catch {
+   265→        // Keep empty data
+   266→      } finally {
+   267→        setLoading(false)
+   268→      }
+   269→    }
+   270→    fetchDashboard()
+   271→  }, [])
+   272→
+   273→  if (loading) {
+   274→    return (
+   275→      <div className="space-y-6 animate-pulse">
+   276→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   277→          {[...Array(4)].map((_, i) => (
+   278→            <Card key={i} className="h-[120px] bg-muted/30" />
+   279→          ))}
+   280→        </div>
+   281→        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   282→          {[...Array(3)].map((_, i) => (
+   283→            <Card key={i} className="h-[350px] bg-muted/30" />
+   284→          ))}
+   285→        </div>
+   286→      </div>
+   287→    )
+   288→  }
+   289→
+   290→  const isEmpty = data.stats.todayAppointments === 0 &&
+   291→    data.stats.todayPatients === 0 &&
+   292→    data.stats.todayRevenue === 0 &&
+   293→    data.recentAppointments.length === 0 &&
+   294→    data.lowStockItems.length === 0 &&
+   295→    data.doctorAttendance.length === 0 &&
+   296→    data.upcomingAppointments.length === 0 &&
+   297→    data.departmentVisits.length === 0
+   298→
+   299→  return (
+   300→    <div className="space-y-6">
+   301→      {/* Page Header */}
+   302→      <div>
+   303→        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Dashboard</h1>
+   304→        <p className="text-muted-foreground text-sm sm:text-base">Overview of your clinic operations today</p>
+   305→      </div>
+   306→
+   307→      {/* ── Stats Cards ──────────────────────────────────────────────────── */}
+   308→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   309→        <Card className="bg-card rounded-xl border shadow-sm">
+   310→          <CardContent className="p-6">
+   311→            <div className="flex items-center justify-between">
+   312→              <div className="space-y-1">
+   313→                <p className="text-sm text-muted-foreground font-medium">Today&apos;s Appointments</p>
+   314→                <p className="text-3xl font-bold">{data.stats.todayAppointments}</p>
+   315→              </div>
+   316→              <div className="h-12 w-12 rounded-xl bg-green-100 flex items-center justify-center">
+   317→                <CalendarCheck className="h-6 w-6 text-green-700" />
+   318→              </div>
+   319→            </div>
+   320→            {data.stats.todayAppointments > 0 && (
+   321→              <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+   322→                <Activity className="h-3 w-3 text-green-600" />
+   323→                <span className="text-green-700 font-medium">Active today</span>
+   324→              </p>
+   325→            )}
+   326→          </CardContent>
+   327→        </Card>
+   328→
+   329→        <Card className="bg-card rounded-xl border shadow-sm">
+   330→          <CardContent className="p-6">
+   331→            <div className="flex items-center justify-between">
+   332→              <div className="space-y-1">
+   333→                <p className="text-sm text-muted-foreground font-medium">Today&apos;s Patients</p>
+   334→                <p className="text-3xl font-bold">{data.stats.todayPatients}</p>
+   335→              </div>
+   336→              <div className="h-12 w-12 rounded-xl bg-green-100 flex items-center justify-center">
+   337→                <Users className="h-6 w-6 text-green-700" />
+   338→              </div>
+   339→            </div>
+   340→            {data.stats.todayPatients > 0 && (
+   341→              <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+   342→                <Activity className="h-3 w-3 text-green-600" />
+   343→                <span className="text-green-700 font-medium">Active today</span>
+   344→              </p>
+   345→            )}
+   346→          </CardContent>
+   347→        </Card>
+   348→
+   349→        <Card className="bg-card rounded-xl border shadow-sm">
+   350→          <CardContent className="p-6">
+   351→            <div className="flex items-center justify-between">
+   352→              <div className="space-y-1">
+   353→                <p className="text-sm text-muted-foreground font-medium">Today&apos;s Revenue</p>
+   354→                <p className="text-3xl font-bold">{formatBDT(data.stats.todayRevenue)}</p>
+   355→              </div>
+   356→              <div className="h-12 w-12 rounded-xl bg-amber-100 flex items-center justify-center">
+   357→                <DollarSign className="h-6 w-6 text-amber-600" />
+   358→              </div>
+   359→            </div>
+   360→            {data.stats.todayRevenue > 0 && (
+   361→              <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+   362→                <Activity className="h-3 w-3 text-green-600" />
+   363→                <span className="text-green-700 font-medium">Collected today</span>
+   364→              </p>
+   365→            )}
+   366→          </CardContent>
+   367→        </Card>
+   368→
+   369→        <Card className="bg-card rounded-xl border shadow-sm">
+   370→          <CardContent className="p-6">
+   371→            <div className="flex items-center justify-between">
+   372→              <div className="space-y-1">
+   373→                <p className="text-sm text-muted-foreground font-medium">Today&apos;s Expenses</p>
+   374→                <p className="text-3xl font-bold">{formatBDT(data.stats.todayExpenses)}</p>
+   375→              </div>
+   376→              <div className="h-12 w-12 rounded-xl bg-rose-100 flex items-center justify-center">
+   377→                <TrendingDown className="h-6 w-6 text-rose-600" />
+   378→              </div>
+   379→            </div>
+   380→            {data.stats.todayExpenses > 0 && (
+   381→              <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+   382→                <TrendingDown className="h-3 w-3 text-rose-500" />
+   383→                <span className="text-rose-600 font-medium">Spent today</span>
+   384→              </p>
+   385→            )}
+   386→          </CardContent>
+   387→        </Card>
+   388→      </div>
+   389→
+   390→      {/* ── Welcome Banner for empty state ───────────────────────────────── */}
+   391→      {isEmpty && (
+   392→        <Card className="bg-gradient-to-r from-green-50 to-green-100/50 border-green-200/50 rounded-xl">
+   393→          <CardContent className="p-6">
+   394→            <div className="flex flex-col sm:flex-row items-start gap-4">
+   395→              <div className="h-12 w-12 rounded-xl bg-green-600 flex items-center justify-center shrink-0">
+   396→                <CheckCircle2 className="h-6 w-6 text-white" />
+   397→              </div>
+   398→              <div className="space-y-1">
+   399→                <h3 className="font-semibold text-green-900">Welcome to Oxygen Health Care!</h3>
+   400→                <p className="text-sm text-green-700/80">
+   401→                  Your system is set up and ready. Start by adding patients, staff members, and inventory items
+   402→                  using the navigation menu. All modules are accessible from your dashboard.
+   403→                </p>
+   404→              </div>
+   405→            </div>
+   406→          </CardContent>
+   407→        </Card>
+   408→      )}
+   409→
+   410→      {/* ── Charts Section ───────────────────────────────────────────────── */}
+   411→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   412→        {/* Weekly Revenue Trend */}
+   413→        <Card className="bg-card rounded-xl border shadow-sm lg:col-span-2">
+   414→          <CardHeader className="pb-2">
+   415→            <CardTitle className="text-base font-semibold">Weekly Revenue Trend</CardTitle>
+   416→            <CardDescription>Revenue for the last 7 days (BDT)</CardDescription>
+   417→          </CardHeader>
+   418→          <CardContent className="pt-4">
+   419→            {data.weeklyRevenue.some((d) => d.revenue > 0) ? (
+   420→              <ChartContainer config={revenueChartConfig} className="h-[300px] w-full">
+   421→                <LineChart data={data.weeklyRevenue} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+   422→                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+   423→                  <XAxis dataKey="day" className="text-xs" tickLine={false} axisLine={false} />
+   424→                  <YAxis className="text-xs" tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+   425→                  <ChartTooltip content={<ChartTooltipContent />} />
+   426→                  <Line
+   427→                    type="monotone"
+   428→                    dataKey="revenue"
+   429→                    stroke="var(--color-revenue)"
+   430→                    strokeWidth={2.5}
+   431→                    dot={{ r: 4, fill: 'var(--color-revenue)' }}
+   432→                    activeDot={{ r: 6 }}
+   433→                  />
+   434→                </LineChart>
+   435→              </ChartContainer>
+   436→            ) : (
+   437→              <EmptyState title="No Revenue Data" description="Revenue data will appear here once payments are recorded" />
+   438→            )}
+   439→          </CardContent>
+   440→        </Card>
+   441→
+   442→        {/* Appointment Status Distribution */}
+   443→        <Card className="bg-card rounded-xl border shadow-sm">
+   444→          <CardHeader className="pb-2">
+   445→            <CardTitle className="text-base font-semibold">Appointment Status</CardTitle>
+   446→            <CardDescription>Today&apos;s distribution</CardDescription>
+   447→          </CardHeader>
+   448→          <CardContent className="pt-4">
+   449→            {data.appointmentStatus.length > 0 ? (
+   450→              <ChartContainer config={appointmentChartConfig} className="h-[300px] w-full">
+   451→                <PieChart>
+   452→                  <ChartTooltip content={<ChartTooltipContent nameKey="status" hideLabel />} />
+   453→                  <Pie
+   454→                    data={data.appointmentStatus}
+   455→                    dataKey="count"
+   456→                    nameKey="status"
+   457→                    cx="50%"
+   458→                    cy="50%"
+   459→                    innerRadius={55}
+   460→                    outerRadius={90}
+   461→                    strokeWidth={2}
+   462→                    stroke="white"
+   463→                  >
+   464→                    {data.appointmentStatus.map((entry, index) => (
+   465→                      <Cell key={`cell-${index}`} fill={entry.fill} />
+   466→                    ))}
+   467→                  </Pie>
+   468→                  <ChartLegend content={<ChartLegendContent nameKey="status" />} />
+   469→                </PieChart>
+   470→              </ChartContainer>
+   471→            ) : (
+   472→              <EmptyState title="No Appointments" description="Appointment data will appear here once appointments are scheduled" />
+   473→            )}
+   474→          </CardContent>
+   475→        </Card>
+   476→      </div>
+   477→
+   478→      {/* Department Visits Chart */}
+   479→      <Card className="bg-card rounded-xl border shadow-sm">
+   480→        <CardHeader className="pb-2">
+   481→          <CardTitle className="text-base font-semibold">Patient Visits by Department</CardTitle>
+   482→          <CardDescription>This week&apos;s department-wise visits</CardDescription>
+   483→        </CardHeader>
+   484→        <CardContent className="pt-4">
+   485→          {data.departmentVisits.length > 0 ? (
+   486→            <ChartContainer config={departmentChartConfig} className="h-[250px] sm:h-[300px] w-full">
+   487→              <BarChart data={data.departmentVisits} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+   488→                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+   489→                <XAxis dataKey="department" className="text-xs" tickLine={false} axisLine={false} angle={-20} textAnchor="end" height={60} interval={0} />
+   490→                <YAxis className="text-xs" tickLine={false} axisLine={false} />
+   491→                <ChartTooltip content={<ChartTooltipContent />} />
+   492→                <Bar dataKey="visits" fill="var(--color-visits)" radius={[6, 6, 0, 0]} maxBarSize={50} />
+   493→              </BarChart>
+   494→            </ChartContainer>
+   495→          ) : (
+   496→            <EmptyState title="No Department Data" description="Department visit data will appear as patients are seen" />
+   497→          )}
+   498→        </CardContent>
+   499→      </Card>
+   500→
+   501→      {/* ── Bottom Grid: Recent Activity + Low Stock + Upcoming ─────────── */}
+   502→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   503→        {/* Recent Appointments */}
+   504→        <Card className="bg-card rounded-xl border shadow-sm lg:col-span-2">
+   505→          <CardHeader className="pb-3">
+   506→            <div className="flex items-center justify-between">
+   507→              <div>
+   508→                <CardTitle className="text-base font-semibold">Recent Activity</CardTitle>
+   509→                <CardDescription>Last 5 appointments</CardDescription>
+   510→              </div>
+   511→              <Clock className="h-4 w-4 text-muted-foreground" />
+   512→            </div>
+   513→          </CardHeader>
+   514→          <CardContent>
+   515→            {data.recentAppointments.length > 0 ? (
+   516→              <div className="overflow-x-auto -mx-6"><Table>
+   517→                <TableHeader>
+   518→                  <TableRow className="hover:bg-transparent">
+   519→                    <TableHead className="text-xs font-semibold">Patient</TableHead>
+   520→                    <TableHead className="text-xs font-semibold">Doctor</TableHead>
+   521→                    <TableHead className="text-xs font-semibold">Time</TableHead>
+   522→                    <TableHead className="text-xs font-semibold">Type</TableHead>
+   523→                    <TableHead className="text-xs font-semibold">Status</TableHead>
+   524→                  </TableRow>
+   525→                </TableHeader>
+   526→                <TableBody>
+   527→                  {data.recentAppointments.map((apt) => (
+   528→                    <TableRow key={apt.id} className="hover:bg-muted/50 transition-colors">
+   529→                      <TableCell className="font-medium text-sm">{apt.patientName}</TableCell>
+   530→                      <TableCell className="text-sm text-muted-foreground">{apt.doctorName}</TableCell>
+   531→                      <TableCell className="text-sm">{apt.time}</TableCell>
+   532→                      <TableCell>
+   533→                        <Badge variant="outline" className="text-xs font-normal">
+   534→                          {apt.type.replace('_', ' ')}
+   535→                        </Badge>
+   536→                      </TableCell>
+   537→                      <TableCell>{getStatusBadge(apt.status)}</TableCell>
+   538→                    </TableRow>
+   539→                  ))}
+   540→                </TableBody>
+   541→              </Table></div>
+   542→            ) : (
+   543→              <EmptyState title="No Recent Appointments" description="Recent appointment activity will be displayed here" />
+   544→            )}
+   545→          </CardContent>
+   546→        </Card>
+   547→
+   548→        {/* Low Stock Alerts */}
+   549→        <Card className="bg-card rounded-xl border shadow-sm">
+   550→          <CardHeader className="pb-3">
+   551→            <div className="flex items-center justify-between">
+   552→              <div>
+   553→                <CardTitle className="text-base font-semibold">Low Stock Alerts</CardTitle>
+   554→                <CardDescription>Items below minimum stock</CardDescription>
+   555→              </div>
+   556→              <AlertTriangle className="h-4 w-4 text-rose-500" />
+   557→            </div>
+   558→          </CardHeader>
+   559→          <CardContent>
+   560→            {data.lowStockItems.length > 0 ? (
+   561→              <ScrollArea className="h-[280px]">
+   562→                <div className="space-y-3">
+   563→                  {data.lowStockItems.map((item) => (
+   564→                    <div key={item.id} className="flex flex-col gap-1.5 p-3 rounded-lg bg-rose-50/50 border border-rose-100">
+   565→                      <div className="flex items-center justify-between">
+   566→                        <span className="text-sm font-medium">{item.name}</span>
+   567→                        <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-rose-200 text-[10px]">
+   568→                          {item.quantity} / {item.minStock}
+   569→                        </Badge>
+   570→                      </div>
+   571→                      <Progress value={(item.quantity / item.minStock) * 100} className="h-1.5 [&>[data-slot=progress-indicator]]:bg-rose-500" />
+   572→                      <p className="text-[10px] text-muted-foreground capitalize">{item.category.toLowerCase()}</p>
+   573→                    </div>
+   574→                  ))}
+   575→                </div>
+   576→              </ScrollArea>
+   577→            ) : (
+   578→              <EmptyState title="All Stock Levels OK" description="No items are below minimum stock level" />
+   579→            )}
+   580→          </CardContent>
+   581→        </Card>
+   582→      </div>
+   583→
+   584→      {/* ── Doctor Attendance + Upcoming Appointments ────────────────────── */}
+   585→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   586→        {/* Doctor Attendance Today */}
+   587→        <Card className="bg-card rounded-xl border shadow-sm">
+   588→          <CardHeader className="pb-3">
+   589→            <div className="flex items-center justify-between">
+   590→              <div>
+   591→                <CardTitle className="text-base font-semibold">Doctor Attendance Today</CardTitle>
+   592→                <CardDescription>Current attendance status</CardDescription>
+   593→              </div>
+   594→              <UserCheck className="h-4 w-4 text-green-600" />
+   595→            </div>
+   596→          </CardHeader>
+   597→          <CardContent>
+   598→            {data.doctorAttendance.length > 0 ? (
+   599→              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   600→                {data.doctorAttendance.map((doc) => (
+   601→                  <div key={doc.id} className="flex flex-col gap-1.5 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
+   602→                    <div className="flex items-center justify-between">
+   603→                      <span className="text-sm font-medium truncate">{doc.doctorName}</span>
+   604→                      {getAttendanceBadge(doc.status)}
+   605→                    </div>
+   606→                    <p className="text-xs text-muted-foreground">{doc.department}</p>
+   607→                    {doc.checkIn && (
+   608→                      <p className="text-xs text-muted-foreground">Checked in: {doc.checkIn}</p>
+   609→                    )}
+   610→                  </div>
+   611→                ))}
+   612→              </div>
+   613→            ) : (
+   614→              <EmptyState title="No Attendance Records" description="Doctor attendance will appear here once checked in" />
+   615→            )}
+   616→          </CardContent>
+   617→        </Card>
+   618→
+   619→        {/* Upcoming Appointments */}
+   620→        <Card className="bg-card rounded-xl border shadow-sm">
+   621→          <CardHeader className="pb-3">
+   622→            <div className="flex items-center justify-between">
+   623→              <div>
+   624→                <CardTitle className="text-base font-semibold">Upcoming Appointments</CardTitle>
+   625→                <CardDescription>Next 5 scheduled appointments</CardDescription>
+   626→              </div>
+   627→              <CalendarCheck className="h-4 w-4 text-green-600" />
+   628→            </div>
+   629→          </CardHeader>
+   630→          <CardContent>
+   631→            {data.upcomingAppointments.length > 0 ? (
+   632→              <div className="space-y-3">
+   633→                {data.upcomingAppointments.map((apt) => (
+   634→                  <div key={apt.id} className="flex items-center gap-4 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
+   635→                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-100 text-green-800 font-bold text-xs">
+   636→                      {apt.time}
+   637→                    </div>
+   638→                    <div className="flex-1 min-w-0">
+   639→                      <p className="text-sm font-medium truncate">{apt.patientName}</p>
+   640→                      <p className="text-xs text-muted-foreground truncate">{apt.doctorName}</p>
+   641→                    </div>
+   642→                    <Badge variant="outline" className="text-xs shrink-0">
+   643→                      {apt.type.replace('_', ' ')}
+   644→                    </Badge>
+   645→                  </div>
+   646→                ))}
+   647→              </div>
+   648→            ) : (
+   649→              <EmptyState title="No Upcoming Appointments" description="Scheduled appointments will appear here" />
+   650→            )}
+   651→          </CardContent>
+   652→        </Card>
+   653→      </div>
+   654→    </div>
+   655→  )
+   656→}
+   657→

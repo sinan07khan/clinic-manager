@@ -9,6 +9,7 @@ import {
   Percent,
   Calendar,
   Activity,
+  Inbox,
 } from 'lucide-react'
 import {
   Card,
@@ -334,6 +335,16 @@ const testCountConfig: ChartConfig = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+function ChartEmptyState({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-[300px] text-center">
+      <Inbox className="size-10 text-muted-foreground/40 mb-3" />
+      <p className="text-sm font-medium text-muted-foreground">{title}</p>
+      <p className="text-xs text-muted-foreground/70 mt-1">{description}</p>
+    </div>
+  )
+}
+
 function formatBDT(amount: number): string {
   if (amount >= 100000) return `৳${(amount / 100000).toFixed(1)}L`
   return `৳${amount.toLocaleString('en-BD')}`
@@ -524,22 +535,26 @@ export default function Analytics() {
                     <CardDescription>Daily revenue for the selected period</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-4">
-                    <ChartContainer config={revenueTrendConfig} className="h-[300px] w-full">
-                      <LineChart data={data.revenueByDay} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis dataKey="date" className="text-xs" tickLine={false} axisLine={false} />
-                        <YAxis className="text-xs" tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Line
-                          type="monotone"
-                          dataKey="revenue"
-                          stroke="var(--color-revenue)"
-                          strokeWidth={2}
-                          dot={false}
-                          activeDot={{ r: 5 }}
-                        />
-                      </LineChart>
-                    </ChartContainer>
+                    {data.revenueByDay.length > 0 && data.revenueByDay.some(d => d.revenue > 0) ? (
+                      <ChartContainer config={revenueTrendConfig} className="h-[300px] w-full">
+                        <LineChart data={data.revenueByDay} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis dataKey="date" className="text-xs" tickLine={false} axisLine={false} />
+                          <YAxis className="text-xs" tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Line
+                            type="monotone"
+                            dataKey="revenue"
+                            stroke="var(--color-revenue)"
+                            strokeWidth={2}
+                            dot={false}
+                            activeDot={{ r: 5 }}
+                          />
+                        </LineChart>
+                      </ChartContainer>
+                    ) : (
+                      <ChartEmptyState title="No Revenue Data" description="Revenue trend will appear once payments are recorded" />
+                    )}
                   </CardContent>
                 </Card>
 
@@ -550,27 +565,31 @@ export default function Analytics() {
                     <CardDescription>Distribution across service types</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-4">
-                    <ChartContainer config={serviceRevenueConfig} className="h-[300px] w-full">
-                      <PieChart>
-                        <ChartTooltip content={<ChartTooltipContent nameKey="service" hideLabel />} />
-                        <Pie
-                          data={data.revenueByService}
-                          dataKey="revenue"
-                          nameKey="service"
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={90}
-                          strokeWidth={2}
-                          stroke="white"
-                        >
-                          {data.revenueByService.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                          ))}
-                        </Pie>
-                        <ChartLegend content={<ChartLegendContent nameKey="service" />} />
-                      </PieChart>
-                    </ChartContainer>
+                    {data.revenueByService.length > 0 ? (
+                      <ChartContainer config={serviceRevenueConfig} className="h-[300px] w-full">
+                        <PieChart>
+                          <ChartTooltip content={<ChartTooltipContent nameKey="service" hideLabel />} />
+                          <Pie
+                            data={data.revenueByService}
+                            dataKey="revenue"
+                            nameKey="service"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={55}
+                            outerRadius={90}
+                            strokeWidth={2}
+                            stroke="white"
+                          >
+                            {data.revenueByService.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.fill} />
+                            ))}
+                          </Pie>
+                          <ChartLegend content={<ChartLegendContent nameKey="service" />} />
+                        </PieChart>
+                      </ChartContainer>
+                    ) : (
+                      <ChartEmptyState title="No Service Data" description="Service revenue breakdown will appear here" />
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -582,17 +601,21 @@ export default function Analytics() {
                   <CardDescription>This year vs. last year</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-4">
-                  <ChartContainer config={monthlyRevenueConfig} className="h-[300px] w-full">
-                    <BarChart data={data.monthlyRevenue} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="month" className="text-xs" tickLine={false} axisLine={false} />
-                      <YAxis className="text-xs" tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 100000).toFixed(0)}L`} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <ChartLegend content={<ChartLegendContent />} />
-                      <Bar dataKey="thisYear" fill="var(--color-thisYear)" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                      <Bar dataKey="lastYear" fill="var(--color-lastYear)" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                    </BarChart>
-                  </ChartContainer>
+                  {data.monthlyRevenue.length > 0 ? (
+                    <ChartContainer config={monthlyRevenueConfig} className="h-[300px] w-full">
+                      <BarChart data={data.monthlyRevenue} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis dataKey="month" className="text-xs" tickLine={false} axisLine={false} />
+                        <YAxis className="text-xs" tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 100000).toFixed(0)}L`} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <ChartLegend content={<ChartLegendContent />} />
+                        <Bar dataKey="thisYear" fill="var(--color-thisYear)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                        <Bar dataKey="lastYear" fill="var(--color-lastYear)" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                      </BarChart>
+                    </ChartContainer>
+                  ) : (
+                    <ChartEmptyState title="No Monthly Data" description="Monthly revenue comparison will appear here" />
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -607,17 +630,21 @@ export default function Analytics() {
                     <CardDescription>New vs returning patients</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-4">
-                    <ChartContainer config={patientTrendConfig} className="h-[300px] w-full">
-                      <LineChart data={data.patientVisitTrend} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis dataKey="date" className="text-xs" tickLine={false} axisLine={false} />
-                        <YAxis className="text-xs" tickLine={false} axisLine={false} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <ChartLegend content={<ChartLegendContent />} />
-                        <Line type="monotone" dataKey="newPatients" stroke="var(--color-newPatients)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                        <Line type="monotone" dataKey="returningPatients" stroke="var(--color-returningPatients)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                      </LineChart>
-                    </ChartContainer>
+                    {data.patientVisitTrend.length > 0 ? (
+                      <ChartContainer config={patientTrendConfig} className="h-[300px] w-full">
+                        <LineChart data={data.patientVisitTrend} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis dataKey="date" className="text-xs" tickLine={false} axisLine={false} />
+                          <YAxis className="text-xs" tickLine={false} axisLine={false} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <ChartLegend content={<ChartLegendContent />} />
+                          <Line type="monotone" dataKey="newPatients" stroke="var(--color-newPatients)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                          <Line type="monotone" dataKey="returningPatients" stroke="var(--color-returningPatients)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                        </LineChart>
+                      </ChartContainer>
+                    ) : (
+                      <ChartEmptyState title="No Visit Data" description="Patient visit trends will appear here" />
+                    )}
                   </CardContent>
                 </Card>
 
@@ -628,27 +655,31 @@ export default function Analytics() {
                     <CardDescription>Gender distribution</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-4">
-                    <ChartContainer config={demographicsConfig} className="h-[300px] w-full">
-                      <PieChart>
-                        <ChartTooltip content={<ChartTooltipContent nameKey="gender" hideLabel />} />
-                        <Pie
-                          data={data.patientDemographics}
-                          dataKey="count"
-                          nameKey="gender"
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={55}
-                          outerRadius={90}
-                          strokeWidth={2}
-                          stroke="white"
-                        >
-                          {data.patientDemographics.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                          ))}
-                        </Pie>
-                        <ChartLegend content={<ChartLegendContent nameKey="gender" />} />
-                      </PieChart>
-                    </ChartContainer>
+                    {data.patientDemographics.length > 0 ? (
+                      <ChartContainer config={demographicsConfig} className="h-[300px] w-full">
+                        <PieChart>
+                          <ChartTooltip content={<ChartTooltipContent nameKey="gender" hideLabel />} />
+                          <Pie
+                            data={data.patientDemographics}
+                            dataKey="count"
+                            nameKey="gender"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={55}
+                            outerRadius={90}
+                            strokeWidth={2}
+                            stroke="white"
+                          >
+                            {data.patientDemographics.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.fill} />
+                            ))}
+                          </Pie>
+                          <ChartLegend content={<ChartLegendContent nameKey="gender" />} />
+                        </PieChart>
+                      </ChartContainer>
+                    ) : (
+                      <ChartEmptyState title="No Demographics Data" description="Patient demographics will appear here" />
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -701,15 +732,19 @@ export default function Analytics() {
                     <CardDescription>Number of patients handled</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-4">
-                    <ChartContainer config={doctorPatientsConfig} className="h-[250px] sm:h-[300px] w-full">
-                      <BarChart data={data.doctorPerformance} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
-                        <XAxis type="number" className="text-xs" tickLine={false} axisLine={false} />
-                        <YAxis dataKey="doctorName" type="category" className="text-xs" tickLine={false} axisLine={false} width={120} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="patients" fill="var(--color-patients)" radius={[0, 6, 6, 0]} maxBarSize={24} />
-                      </BarChart>
-                    </ChartContainer>
+                    {data.doctorPerformance.length > 0 ? (
+                      <ChartContainer config={doctorPatientsConfig} className="h-[250px] sm:h-[300px] w-full">
+                        <BarChart data={data.doctorPerformance} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                          <XAxis type="number" className="text-xs" tickLine={false} axisLine={false} />
+                          <YAxis dataKey="doctorName" type="category" className="text-xs" tickLine={false} axisLine={false} width={120} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Bar dataKey="patients" fill="var(--color-patients)" radius={[0, 6, 6, 0]} maxBarSize={24} />
+                        </BarChart>
+                      </ChartContainer>
+                    ) : (
+                      <ChartEmptyState title="No Doctor Data" description="Doctor performance will appear here" />
+                    )}
                   </CardContent>
                 </Card>
 
@@ -720,15 +755,19 @@ export default function Analytics() {
                     <CardDescription>Revenue generated by each doctor</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-4">
-                    <ChartContainer config={doctorRevenueConfig} className="h-[250px] sm:h-[300px] w-full">
-                      <BarChart data={data.doctorPerformance} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
-                        <XAxis type="number" className="text-xs" tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                        <YAxis dataKey="doctorName" type="category" className="text-xs" tickLine={false} axisLine={false} width={120} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="revenue" fill="var(--color-revenue)" radius={[0, 6, 6, 0]} maxBarSize={24} />
-                      </BarChart>
-                    </ChartContainer>
+                    {data.doctorPerformance.length > 0 ? (
+                      <ChartContainer config={doctorRevenueConfig} className="h-[250px] sm:h-[300px] w-full">
+                        <BarChart data={data.doctorPerformance} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                          <XAxis type="number" className="text-xs" tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                          <YAxis dataKey="doctorName" type="category" className="text-xs" tickLine={false} axisLine={false} width={120} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Bar dataKey="revenue" fill="var(--color-revenue)" radius={[0, 6, 6, 0]} maxBarSize={24} />
+                        </BarChart>
+                      </ChartContainer>
+                    ) : (
+                      <ChartEmptyState title="No Doctor Data" description="Doctor revenue will appear here" />
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -763,7 +802,7 @@ export default function Analytics() {
                             </div>
                           </TableCell>
                           <TableCell className="text-sm text-right font-mono text-muted-foreground">
-                            {formatBDTFull(Math.round(doc.revenue / doc.patients))}
+                            {formatBDTFull(Math.round(doc.patients > 0 ? doc.revenue / doc.patients : 0))}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -783,15 +822,19 @@ export default function Analytics() {
                     <CardDescription>Test ordering frequency</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-4">
-                    <ChartContainer config={testCountConfig} className="h-[280px] sm:h-[350px] w-full">
-                      <BarChart data={data.diagnosticTests} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
-                        <XAxis type="number" className="text-xs" tickLine={false} axisLine={false} />
-                        <YAxis dataKey="testName" type="category" className="text-xs" tickLine={false} axisLine={false} width={120} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="count" fill="var(--color-count)" radius={[0, 6, 6, 0]} maxBarSize={22} />
-                      </BarChart>
-                    </ChartContainer>
+                    {data.diagnosticTests.length > 0 ? (
+                      <ChartContainer config={testCountConfig} className="h-[280px] sm:h-[350px] w-full">
+                        <BarChart data={data.diagnosticTests} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                          <XAxis type="number" className="text-xs" tickLine={false} axisLine={false} />
+                          <YAxis dataKey="testName" type="category" className="text-xs" tickLine={false} axisLine={false} width={120} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Bar dataKey="count" fill="var(--color-count)" radius={[0, 6, 6, 0]} maxBarSize={22} />
+                        </BarChart>
+                      </ChartContainer>
+                    ) : (
+                      <ChartEmptyState title="No Test Data" description="Diagnostic test data will appear here" />
+                    )}
                   </CardContent>
                 </Card>
 
@@ -821,7 +864,7 @@ export default function Analytics() {
                               </TableCell>
                               <TableCell className="text-sm text-right font-mono">{formatBDTFull(test.revenue)}</TableCell>
                               <TableCell className="text-sm text-right font-mono text-muted-foreground">
-                                {formatBDTFull(Math.round(test.revenue / test.count))}
+                                {formatBDTFull(Math.round(test.count > 0 ? test.revenue / test.count : 0))}
                               </TableCell>
                             </TableRow>
                           ))}
