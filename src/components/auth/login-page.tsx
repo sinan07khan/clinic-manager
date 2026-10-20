@@ -31,6 +31,9 @@ export default function LoginPage() {
 
       if (result?.error) {
         setError('Invalid email or password. Please try again.')
+      } else {
+        // Successful login - reload to update session and show dashboard
+        window.location.reload()
       }
     } catch {
       setError('An error occurred. Please try again.')

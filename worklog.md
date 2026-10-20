@@ -34,3 +34,31 @@ Stage Summary:
 - Code quality: lint passes with zero errors
 - Login page renders correctly with Oxygen Health Care branding
 - The app is ready for the user to add their own data
+
+---
+Task ID: 2
+Agent: main
+Task: Fix landing page load issues
+
+Work Log:
+- Diagnosed Turbopack ChunkLoadError when navigating to Diagnostics & Lab module
+- Fixed login page not redirecting after successful login (added window.location.reload() in login-page.tsx)
+- Fixed missing NEXTAUTH_URL and NEXTAUTH_SECRET in .env file
+- Generated Prisma client (was missing, causing 500 errors)
+- Re-seeded database with fresh admin-only data
+- Added chunk load error recovery handler in providers.tsx (auto-reloads on ChunkLoadError)
+- Created global error boundary (src/app/error.tsx) with auto-reload for chunk errors
+- Verified dashboard loads correctly with all navigation items
+- Verified login works correctly (POST /api/auth/callback/credentials 200)
+- Verified all API endpoints return proper data (dashboard, staff, patients, etc.)
+- Identified root cause of page crash: Turbopack ChunkLoadError when loading dynamic imports
+- Added error recovery mechanism to handle chunk load failures gracefully
+
+Stage Summary:
+- Login redirect fix: Added window.location.reload() after successful signIn
+- Environment fix: Added NEXTAUTH_URL and NEXTAUTH_SECRET to .env
+- Prisma client: Generated successfully
+- Error handling: Added chunk load error recovery + global error boundary
+- Dashboard verified working: Shows all 8 navigation items, KPI cards, welcome message
+- Login verified working: Credentials authenticate, session created, redirect to dashboard
+- Remaining issue: Dev server process stability in sandbox (dies after ~15-30s)
