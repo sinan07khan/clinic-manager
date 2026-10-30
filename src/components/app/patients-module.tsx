@@ -214,6 +214,194 @@ function PatientQRCode({ patientId }: { patientId: string }) {
       </div>
       <p className="text-sm font-mono font-bold text-green-900">{patientId}</p>
       <p className="text-xs text-muted-foreground">Patient ID</p>
+      {/* UHID Barcode / QR Code Smart ID Card Modal */}
+      <Dialog open={uhidCardOpen} onOpenChange={setUhidCardOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <QrCode className="h-5 w-5 text-purple-600" />
+              Patient UHID Health ID Card
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Instant history retrieval card with barcode and digital QR code.
+            </DialogDescription>
+          </DialogHeader>
+
+          {uhidPatient && (
+            <div className="p-4 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl shadow-xl border border-white/20 space-y-4">
+              <div className="flex justify-between items-start border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-lg bg-emerald-500/20 border border-emerald-400 flex items-center justify-center font-bold text-emerald-400">
+                    CM
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm tracking-wide">CLINIC MANAGER</h3>
+                    <p className="text-[10px] text-white/60">Digital Healthcare Health Card</p>
+                  </div>
+                </div>
+                <Badge className="bg-emerald-500 text-white text-[10px] font-mono border-0">
+                  UHID: {uhidPatient.patientId}
+                </Badge>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-xl font-bold text-white shrink-0">
+                  {uhidPatient.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="space-y-0.5 text-xs">
+                  <h4 className="font-bold text-base text-white">{uhidPatient.name}</h4>
+                  <p className="text-white/70">Phone: {uhidPatient.phone}</p>
+                  <div className="flex items-center gap-2 pt-1">
+                    <Badge variant="outline" className="text-[10px] text-red-300 border-red-400/40 bg-red-950/40">
+                      Blood: {uhidPatient.bloodGroup || 'O+'}
+                    </Badge>
+                    <span className="text-[10px] text-white/60">Gender: {uhidPatient.gender || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Barcode & QR Code Section */}
+              <div className="bg-white rounded-xl p-3 flex flex-col items-center justify-center gap-2 text-slate-950">
+                {/* SVG Barcode Representation */}
+                <div className="h-10 w-full flex items-center justify-center px-4">
+                  <svg className="w-full h-8" viewBox="0 0 200 40">
+                    <rect x="0" y="0" width="4" height="40" fill="black" />
+                    <rect x="8" y="0" width="2" height="40" fill="black" />
+                    <rect x="14" y="0" width="6" height="40" fill="black" />
+                    <rect x="24" y="0" width="2" height="40" fill="black" />
+                    <rect x="30" y="0" width="4" height="40" fill="black" />
+                    <rect x="38" y="0" width="2" height="40" fill="black" />
+                    <rect x="44" y="0" width="6" height="40" fill="black" />
+                    <rect x="54" y="0" width="4" height="40" fill="black" />
+                    <rect x="62" y="0" width="2" height="40" fill="black" />
+                    <rect x="68" y="0" width="8" height="40" fill="black" />
+                    <rect x="80" y="0" width="2" height="40" fill="black" />
+                    <rect x="86" y="0" width="4" height="40" fill="black" />
+                    <rect x="94" y="0" width="6" height="40" fill="black" />
+                    <rect x="104" y="0" width="2" height="40" fill="black" />
+                    <rect x="110" y="0" width="4" height="40" fill="black" />
+                    <rect x="118" y="0" width="8" height="40" fill="black" />
+                    <rect x="130" y="0" width="2" height="40" fill="black" />
+                    <rect x="136" y="0" width="4" height="40" fill="black" />
+                    <rect x="144" y="0" width="2" height="40" fill="black" />
+                    <rect x="150" y="0" width="6" height="40" fill="black" />
+                    <rect x="160" y="0" width="4" height="40" fill="black" />
+                    <rect x="168" y="0" width="2" height="40" fill="black" />
+                    <rect x="174" y="0" width="4" height="40" fill="black" />
+                    <rect x="182" y="0" width="6" height="40" fill="black" />
+                    <rect x="192" y="0" width="4" height="40" fill="black" />
+                  </svg>
+                </div>
+                <span className="font-mono text-xs font-bold tracking-widest text-slate-800">
+                  *{uhidPatient.patientId}*
+                </span>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" size="sm" onClick={() => setUhidCardOpen(false)}>Close</Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                window.print()
+                toast({ title: 'Printing ID Card', description: 'Sent to thermal card printer' })
+              }}
+              className="bg-purple-700 hover:bg-purple-800 text-white gap-1.5"
+            >
+              <Printer className="h-4 w-4" /> Print UHID Card
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fast-Track Emergency Registration Modal */}
+      <Dialog open={fastTrackOpen} onOpenChange={setFastTrackOpen}>
+        <DialogContent className="sm:max-w-md border-red-300">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2 text-red-700">
+              <Zap className="h-5 w-5 text-red-600" />
+              Fast-Track Emergency Patient Registration
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Minimal mandatory fields for immediate triage and instant token assignment.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div>
+              <Label className="text-xs font-semibold text-red-800">Patient Full Name *</Label>
+              <Input
+                value={fastTrackForm.name}
+                onChange={(e) => setFastTrackForm({ ...fastTrackForm, name: e.target.value })}
+                placeholder="e.g. Emergency Patient"
+                className="h-9 text-xs mt-1 border-red-200"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs font-semibold text-red-800">Phone Number *</Label>
+              <Input
+                value={fastTrackForm.phone}
+                onChange={(e) => setFastTrackForm({ ...fastTrackForm, phone: e.target.value })}
+                placeholder="01XXXXXXXXX"
+                className="h-9 text-xs mt-1 border-red-200"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Attendant / Contact</Label>
+                <Input
+                  value={fastTrackForm.emergencyContact}
+                  onChange={(e) => setFastTrackForm({ ...fastTrackForm, emergencyContact: e.target.value })}
+                  placeholder="Relative name"
+                  className="h-8 text-xs mt-1"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs">Triage Priority</Label>
+                <Select
+                  value={fastTrackForm.triagePriority}
+                  onValueChange={(v) => setFastTrackForm({ ...fastTrackForm, triagePriority: v })}
+                >
+                  <SelectTrigger className="h-8 text-xs mt-1 text-red-700 font-semibold border-red-300">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EMERGENCY" className="text-red-700 font-bold">EMERGENCY (Red)</SelectItem>
+                    <SelectItem value="FAST_TRACK" className="text-amber-700 font-bold">FAST-TRACK (Yellow)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Chief Presenting Emergency Complaints</Label>
+              <Textarea
+                value={fastTrackForm.emergencyNotes}
+                onChange={(e) => setFastTrackForm({ ...fastTrackForm, emergencyNotes: e.target.value })}
+                placeholder="Severe chest pain, bleeding trauma, unconsciousness..."
+                className="h-16 text-xs mt-1"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setFastTrackOpen(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              onClick={handleFastTrackRegister}
+              disabled={fastTrackSubmitting}
+              className="bg-red-600 hover:bg-red-700 text-white gap-1.5"
+            >
+              <Zap className="h-4 w-4" />
+              Register & Dispatch to ER Queue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -1203,6 +1391,194 @@ export default function PatientsModule() {
               </Tabs>
             </>
           ) : null}
+        </DialogContent>
+      </Dialog>
+      {/* UHID Barcode / QR Code Smart ID Card Modal */}
+      <Dialog open={uhidCardOpen} onOpenChange={setUhidCardOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <QrCode className="h-5 w-5 text-purple-600" />
+              Patient UHID Health ID Card
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Instant history retrieval card with barcode and digital QR code.
+            </DialogDescription>
+          </DialogHeader>
+
+          {uhidPatient && (
+            <div className="p-4 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl shadow-xl border border-white/20 space-y-4">
+              <div className="flex justify-between items-start border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-lg bg-emerald-500/20 border border-emerald-400 flex items-center justify-center font-bold text-emerald-400">
+                    CM
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm tracking-wide">CLINIC MANAGER</h3>
+                    <p className="text-[10px] text-white/60">Digital Healthcare Health Card</p>
+                  </div>
+                </div>
+                <Badge className="bg-emerald-500 text-white text-[10px] font-mono border-0">
+                  UHID: {uhidPatient.patientId}
+                </Badge>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-xl font-bold text-white shrink-0">
+                  {uhidPatient.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="space-y-0.5 text-xs">
+                  <h4 className="font-bold text-base text-white">{uhidPatient.name}</h4>
+                  <p className="text-white/70">Phone: {uhidPatient.phone}</p>
+                  <div className="flex items-center gap-2 pt-1">
+                    <Badge variant="outline" className="text-[10px] text-red-300 border-red-400/40 bg-red-950/40">
+                      Blood: {uhidPatient.bloodGroup || 'O+'}
+                    </Badge>
+                    <span className="text-[10px] text-white/60">Gender: {uhidPatient.gender || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Barcode & QR Code Section */}
+              <div className="bg-white rounded-xl p-3 flex flex-col items-center justify-center gap-2 text-slate-950">
+                {/* SVG Barcode Representation */}
+                <div className="h-10 w-full flex items-center justify-center px-4">
+                  <svg className="w-full h-8" viewBox="0 0 200 40">
+                    <rect x="0" y="0" width="4" height="40" fill="black" />
+                    <rect x="8" y="0" width="2" height="40" fill="black" />
+                    <rect x="14" y="0" width="6" height="40" fill="black" />
+                    <rect x="24" y="0" width="2" height="40" fill="black" />
+                    <rect x="30" y="0" width="4" height="40" fill="black" />
+                    <rect x="38" y="0" width="2" height="40" fill="black" />
+                    <rect x="44" y="0" width="6" height="40" fill="black" />
+                    <rect x="54" y="0" width="4" height="40" fill="black" />
+                    <rect x="62" y="0" width="2" height="40" fill="black" />
+                    <rect x="68" y="0" width="8" height="40" fill="black" />
+                    <rect x="80" y="0" width="2" height="40" fill="black" />
+                    <rect x="86" y="0" width="4" height="40" fill="black" />
+                    <rect x="94" y="0" width="6" height="40" fill="black" />
+                    <rect x="104" y="0" width="2" height="40" fill="black" />
+                    <rect x="110" y="0" width="4" height="40" fill="black" />
+                    <rect x="118" y="0" width="8" height="40" fill="black" />
+                    <rect x="130" y="0" width="2" height="40" fill="black" />
+                    <rect x="136" y="0" width="4" height="40" fill="black" />
+                    <rect x="144" y="0" width="2" height="40" fill="black" />
+                    <rect x="150" y="0" width="6" height="40" fill="black" />
+                    <rect x="160" y="0" width="4" height="40" fill="black" />
+                    <rect x="168" y="0" width="2" height="40" fill="black" />
+                    <rect x="174" y="0" width="4" height="40" fill="black" />
+                    <rect x="182" y="0" width="6" height="40" fill="black" />
+                    <rect x="192" y="0" width="4" height="40" fill="black" />
+                  </svg>
+                </div>
+                <span className="font-mono text-xs font-bold tracking-widest text-slate-800">
+                  *{uhidPatient.patientId}*
+                </span>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" size="sm" onClick={() => setUhidCardOpen(false)}>Close</Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                window.print()
+                toast({ title: 'Printing ID Card', description: 'Sent to thermal card printer' })
+              }}
+              className="bg-purple-700 hover:bg-purple-800 text-white gap-1.5"
+            >
+              <Printer className="h-4 w-4" /> Print UHID Card
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fast-Track Emergency Registration Modal */}
+      <Dialog open={fastTrackOpen} onOpenChange={setFastTrackOpen}>
+        <DialogContent className="sm:max-w-md border-red-300">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2 text-red-700">
+              <Zap className="h-5 w-5 text-red-600" />
+              Fast-Track Emergency Patient Registration
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Minimal mandatory fields for immediate triage and instant token assignment.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div>
+              <Label className="text-xs font-semibold text-red-800">Patient Full Name *</Label>
+              <Input
+                value={fastTrackForm.name}
+                onChange={(e) => setFastTrackForm({ ...fastTrackForm, name: e.target.value })}
+                placeholder="e.g. Emergency Patient"
+                className="h-9 text-xs mt-1 border-red-200"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs font-semibold text-red-800">Phone Number *</Label>
+              <Input
+                value={fastTrackForm.phone}
+                onChange={(e) => setFastTrackForm({ ...fastTrackForm, phone: e.target.value })}
+                placeholder="01XXXXXXXXX"
+                className="h-9 text-xs mt-1 border-red-200"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Attendant / Contact</Label>
+                <Input
+                  value={fastTrackForm.emergencyContact}
+                  onChange={(e) => setFastTrackForm({ ...fastTrackForm, emergencyContact: e.target.value })}
+                  placeholder="Relative name"
+                  className="h-8 text-xs mt-1"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs">Triage Priority</Label>
+                <Select
+                  value={fastTrackForm.triagePriority}
+                  onValueChange={(v) => setFastTrackForm({ ...fastTrackForm, triagePriority: v })}
+                >
+                  <SelectTrigger className="h-8 text-xs mt-1 text-red-700 font-semibold border-red-300">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EMERGENCY" className="text-red-700 font-bold">EMERGENCY (Red)</SelectItem>
+                    <SelectItem value="FAST_TRACK" className="text-amber-700 font-bold">FAST-TRACK (Yellow)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Chief Presenting Emergency Complaints</Label>
+              <Textarea
+                value={fastTrackForm.emergencyNotes}
+                onChange={(e) => setFastTrackForm({ ...fastTrackForm, emergencyNotes: e.target.value })}
+                placeholder="Severe chest pain, bleeding trauma, unconsciousness..."
+                className="h-16 text-xs mt-1"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setFastTrackOpen(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              onClick={handleFastTrackRegister}
+              disabled={fastTrackSubmitting}
+              className="bg-red-600 hover:bg-red-700 text-white gap-1.5"
+            >
+              <Zap className="h-4 w-4" />
+              Register & Dispatch to ER Queue
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
