@@ -169,9 +169,6 @@ export async function POST(request: NextRequest) {
       return newInvoice
     })
 
-      return newInvoice
-    })
-
     return NextResponse.json(invoice, { status: 201 })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to create invoice'

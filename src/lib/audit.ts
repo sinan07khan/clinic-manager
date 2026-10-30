@@ -29,3 +29,4 @@ export async function logAudit(params: AuditParams) {
     console.error('Failed to write audit log:', err)
   }
 }
+

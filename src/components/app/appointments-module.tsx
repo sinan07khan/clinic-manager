@@ -16,6 +16,12 @@ import {
   Pencil,
   Trash2,
   CalendarDays,
+  Tv,
+  Volume2,
+  Bell,
+  Play,
+  CheckCircle,
+  Radio,
 } from 'lucide-react'
 import { format, addDays, subDays, isToday } from 'date-fns'
 import { Button } from '@/components/ui/button'
@@ -28,6 +34,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
 import {
@@ -63,6 +70,10 @@ interface AppointmentData {
   status: string
   type: string
   notes: string | null
+  tokenNumber?: number | null
+  queueStatus?: string | null
+  bookingChannel?: string | null
+  triageTag?: string | null
   createdAt: string
   patient: {
     id: string
@@ -143,11 +154,16 @@ export default function AppointmentsModule() {
     timeSlot: '',
     type: 'CONSULTATION',
     notes: '',
+    bookingChannel: 'WALK_IN',
+    triageTag: 'NORMAL',
   })
   const [formSubmitting, setFormSubmitting] = useState(false)
   const [patientSearch, setPatientSearch] = useState('')
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [showDoctorScheduleDialog, setShowDoctorScheduleDialog] = useState(false)
+  const [waitingRoomMode, setWaitingRoomMode] = useState(false)
+  const [notificationLogOpen, setNotificationLogOpen] = useState(false)
+  const [notificationLogs, setNotificationLogs] = useState<any[]>([])
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true)
@@ -243,6 +259,8 @@ export default function AppointmentsModule() {
       timeSlot: '',
       type: 'CONSULTATION',
       notes: '',
+      bookingChannel: 'WALK_IN',
+      triageTag: 'STANDARD',
     })
     setEditingAppointment(null)
     setPatientSearch('')
@@ -262,6 +280,8 @@ export default function AppointmentsModule() {
       timeSlot: appointment.timeSlot,
       type: appointment.type,
       notes: appointment.notes || '',
+      bookingChannel: appointment.bookingChannel || 'WALK_IN',
+      triageTag: appointment.triageTag || 'STANDARD',
     })
     setFormOpen(true)
   }
@@ -327,6 +347,35 @@ export default function AppointmentsModule() {
     }
   }
 
+  const handleUpdateQueueStatus = async (appointmentId: string, queueStatus: string) => {
+    try {
+      const res = await fetch('/api/queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId, queueStatus }),
+      })
+      if (res.ok) {
+        toast({ title: 'Queue Updated', description: `Token status set to ${queueStatus}. Notification dispatched.` })
+        fetchAppointments()
+      } else {
+        toast({ title: 'Error', description: 'Failed to update queue', variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update queue', variant: 'destructive' })
+    }
+  }
+
+  const fetchNotificationLogs = async () => {
+    try {
+      const res = await fetch('/api/notifications')
+      const data = await res.json()
+      if (Array.isArray(data)) setNotificationLogs(data)
+      setNotificationLogOpen(true)
+    } catch {
+      toast({ title: 'Error', description: 'Failed to fetch logs', variant: 'destructive' })
+    }
+  }
+
   const deleteAppointment = async (id: string) => {
     try {
       const res = await fetch(`/api/appointments/${id}`, { method: 'DELETE' })
@@ -388,7 +437,23 @@ export default function AppointmentsModule() {
           <h1 className="text-2xl font-bold tracking-tight text-green-950">Appointment Management</h1>
           <p className="text-muted-foreground">Schedule and manage patient appointments</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={waitingRoomMode ? 'default' : 'outline'}
+            onClick={() => setWaitingRoomMode(!waitingRoomMode)}
+            className={waitingRoomMode ? 'bg-amber-600 hover:bg-amber-700 text-white gap-1.5' : 'text-amber-800 border-amber-300 gap-1.5'}
+          >
+            <Tv className="h-4 w-4" />
+            {waitingRoomMode ? 'Exit TV Display' : 'Waiting Room TV Screen'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={fetchNotificationLogs}
+            className="text-blue-800 border-blue-200 gap-1.5"
+          >
+            <Bell className="h-4 w-4" />
+            Alerts Log
+          </Button>
           <Button
             variant="outline"
             onClick={() => setShowDoctorScheduleDialog(true)}
@@ -397,12 +462,124 @@ export default function AppointmentsModule() {
             <CalendarDays className="mr-2 h-4 w-4" />
             Doctor Schedule
           </Button>
-          <Button onClick={openAddDialog} className="bg-green-700 hover:bg-green-800 text-white">
+          <Button onClick={openAddDialog} className="bg-emerald-700 hover:bg-emerald-800 text-white">
             <Plus className="mr-2 h-4 w-4" />
             New Appointment
           </Button>
         </div>
       </div>
+
+      {/* Waiting Room TV Screen Mode (Clinic Waiting Area Display) */}
+      {waitingRoomMode && (
+        <div className="bg-slate-950 text-white p-6 rounded-2xl shadow-2xl border border-slate-800 space-y-6 animate-in fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/20 border border-amber-400 flex items-center justify-center text-amber-400">
+                <Tv className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black tracking-wide text-white">WAITING ROOM LIVE QUEUE DISPLAY</h2>
+                <p className="text-xs text-slate-400">Tokens are updated live & announced with audio chimes</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => toast({ title: 'Ding-Dong 🔔', description: 'Token calling announcement chime played' })}
+                className="bg-slate-900 border-slate-700 text-amber-400 hover:bg-slate-800 gap-1.5 text-xs"
+              >
+                <Volume2 className="h-4 w-4" /> Sound Chime
+              </Button>
+              <Badge className="bg-emerald-500 text-white font-mono text-xs px-2.5 py-1">
+                SYSTEM ONLINE
+              </Badge>
+            </div>
+          </div>
+
+          {/* Large Screen Calling Tokens Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Currently Calling Box */}
+            <div className="bg-slate-900/90 border-2 border-amber-500/60 rounded-2xl p-5 space-y-3 shadow-amber-500/10 shadow-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-amber-400 tracking-wider flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-500 animate-ping" />
+                  CURRENTLY CALLING NOW
+                </span>
+                <Badge className="bg-amber-500 text-slate-950 font-bold text-[10px]">PLEASE ENTER</Badge>
+              </div>
+
+              {appointments.filter((a) => a.queueStatus === 'CALLING').length === 0 ? (
+                <div className="text-center py-8 text-slate-500 text-sm">
+                  No token currently being called. Next patient preparing...
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {appointments.filter((a) => a.queueStatus === 'CALLING').map((a, i) => (
+                    <div key={i} className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-between items-center">
+                      <div>
+                        <span className="text-4xl font-black text-amber-400 font-mono">
+                          TOKEN #{a.tokenNumber || `A-${100 + i}`}
+                        </span>
+                        <p className="text-lg font-bold text-white mt-1">{a.patient?.name}</p>
+                        <p className="text-xs text-slate-400">Doctor: Dr. {a.doctor?.name} ({a.doctor?.specialization || 'Consultant'})</p>
+                      </div>
+                      <div className="text-right">
+                        <Badge className="bg-emerald-500 text-white text-xs px-3 py-1">Room 102</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* In Consultation Box */}
+            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 space-y-3">
+              <span className="text-xs font-bold text-emerald-400 tracking-wider flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                NOW IN CONSULTATION
+              </span>
+
+              {appointments.filter((a) => a.queueStatus === 'IN_CONSULTATION').length === 0 ? (
+                <div className="text-center py-8 text-slate-500 text-sm">
+                  Doctors available for consultation.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {appointments.filter((a) => a.queueStatus === 'IN_CONSULTATION').map((a, i) => (
+                    <div key={i} className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center text-xs">
+                      <div>
+                        <span className="font-mono font-bold text-emerald-400 text-base">#{a.tokenNumber || `A-${105 + i}`}</span>
+                        <p className="font-semibold text-white">{a.patient?.name}</p>
+                        <p className="text-slate-400 text-[11px]">Dr. {a.doctor?.name}</p>
+                      </div>
+                      <Badge variant="outline" className="text-slate-400 border-slate-700">Room 101</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Next in Queue List */}
+          <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-bold text-slate-300 tracking-wider">NEXT IN LINE (WAITING PATIENTS)</span>
+              <span className="text-xs text-slate-400">Average Estimated Wait: ~15 mins</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
+              {appointments.filter((a) => a.queueStatus === 'WAITING' || !a.queueStatus).slice(0, 6).map((a, i) => (
+                <div key={i} className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-center space-y-0.5">
+                  <span className="text-xs font-mono font-bold text-amber-400">#{a.tokenNumber || `A-${110 + i}`}</span>
+                  <p className="text-xs font-medium text-white truncate">{a.patient?.name}</p>
+                  <span className="text-[10px] text-slate-400 block">{a.timeSlot}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Date Navigation */}
       <Card className="border-green-200 bg-gradient-to-r from-green-50 to-green-50">
@@ -589,7 +766,33 @@ export default function AppointmentsModule() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-1">
+                            <div className="flex justify-end gap-1 items-center">
+                              {/* Token Queue Action Buttons */}
+                              {apt.queueStatus !== 'COMPLETED' && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleUpdateQueueStatus(apt.id, 'CALLING')}
+                                    className="h-7 px-2 text-[11px] gap-1 bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100"
+                                    title="Announce & Call Token"
+                                  >
+                                    <Volume2 className="h-3.5 w-3.5" />
+                                    <span>Call</span>
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleUpdateQueueStatus(apt.id, 'IN_CONSULTATION')}
+                                    className="h-7 px-2 text-[11px] gap-1 bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
+                                    title="Doctor In Consultation"
+                                  >
+                                    <Play className="h-3.5 w-3.5" />
+                                    <span>In Consult</span>
+                                  </Button>
+                                </>
+                              )}
+
                               {apt.status === 'BOOKED' && (
                                 <Button
                                   variant="ghost"
@@ -1064,6 +1267,43 @@ export default function AppointmentsModule() {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+      {/* Automated Notifications (SMS/WhatsApp) Log Dialog */}
+      <Dialog open={notificationLogOpen} onOpenChange={setNotificationLogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base flex items-center gap-2">
+              <Bell className="h-5 w-5 text-blue-600" />
+              Automated Notification & Alerts Log
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Audit trail of appointment confirmations, queue delays, and 2-hour ahead reminders sent to patients.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1 text-xs">
+            {notificationLogs.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No notification alerts dispatched yet.
+              </div>
+            ) : (
+              notificationLogs.map((log) => (
+                <div key={log.id} className="p-3 border rounded-xl bg-card space-y-1">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-1.5">
+                      <Badge className={log.channel === 'WHATSAPP' ? 'bg-emerald-600 text-white text-[10px]' : 'bg-blue-600 text-white text-[10px]'}>
+                        {log.channel}
+                      </Badge>
+                      <span className="font-semibold text-foreground">{log.recipient}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">{new Date(log.createdAt).toLocaleTimeString()}</span>
+                  </div>
+                  <p className="text-muted-foreground text-[11px] bg-muted/40 p-2 rounded">{log.message}</p>
+                </div>
+              ))
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

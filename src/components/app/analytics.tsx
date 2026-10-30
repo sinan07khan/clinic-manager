@@ -10,6 +10,17 @@ import {
   Calendar,
   Activity,
   Inbox,
+  ShieldCheck,
+  Lock,
+  FileCheck,
+  Coins,
+  Clock,
+  UserCheck,
+  CheckCircle2,
+  AlertTriangle,
+  Search,
+  Receipt,
+  RotateCcw,
 } from 'lucide-react'
 import {
   Card,
@@ -20,6 +31,16 @@ import {
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { toast } from 'sonner'
 import {
   Table,
   TableBody,
@@ -371,6 +392,161 @@ export default function Analytics() {
 
   const data = apiData || mockData[dateRange]
 
+  // Commissions state
+  const [commissionsData, setCommissionsData] = useState<{
+    summary: { totalCommissions: number; pendingCommissions: number; paidCommissions: number }
+    commissions: Array<{
+      id: string
+      doctorId: string
+      doctor?: { name: string; specialization?: string } | null
+      serviceName: string
+      serviceAmount: number
+      commissionRate: number
+      commissionAmount: number
+      status: string
+      paidAt?: string
+      createdAt: string
+    }>
+  }>({
+    summary: { totalCommissions: 0, pendingCommissions: 0, paidCommissions: 0 },
+    commissions: [],
+  })
+
+  // Daily Closing state
+  const [dailyClosingData, setDailyClosingData] = useState<{
+    history: Array<{
+      id: string
+      closingDate: string
+      totalCollection: number
+      cashInDrawer: number
+      digitalCollection: number
+      expensesDeducted: number
+      expectedCash: number
+      actualCash: number
+      discrepancy: number
+      closedBy: string
+      notes?: string
+    }>
+    liveToday: {
+      cashCollected: number
+      cardCollected: number
+      digitalCollected: number
+      totalExpenses: number
+      expectedCashInHand: number
+    }
+  }>({
+    history: [],
+    liveToday: { cashCollected: 0, cardCollected: 0, digitalCollected: 0, totalExpenses: 0, expectedCashInHand: 0 },
+  })
+
+  // Audit Logs state
+  const [auditLogs, setAuditLogs] = useState<Array<{
+    id: string
+    action: string
+    module: string
+    recordId?: string
+    details: string
+    userId?: string
+    ipAddress?: string
+    createdAt: string
+  }>>([])
+  const [auditModuleFilter, setAuditModuleFilter] = useState("ALL")
+
+  // Actual cash input for day-end reconciliation
+  const [countedCash, setCountedCash] = useState("")
+  const [closingNotes, setClosingNotes] = useState("")
+  const [closingStaff, setClosingStaff] = useState("Sinan (Admin)")
+  const [isSubmittingClosing, setIsSubmittingClosing] = useState(false)
+
+  const fetchCommissions = async () => {
+    try {
+      const res = await fetch('/api/finance/commissions')
+      if (res.ok) {
+        const json = await res.json()
+        setCommissionsData(json)
+      }
+    } catch {}
+  }
+
+  const fetchDailyClosing = async () => {
+    try {
+      const res = await fetch('/api/finance/daily-closing')
+      if (res.ok) {
+        const json = await res.json()
+        setDailyClosingData(json)
+        if (json.liveToday && countedCash === "") {
+          setCountedCash(String(json.liveToday.expectedCashInHand))
+        }
+      }
+    } catch {}
+  }
+
+  const fetchAuditLogs = async () => {
+    try {
+      const res = await fetch(`/api/audit-logs?module=${auditModuleFilter}&limit=100`)
+      if (res.ok) {
+        const json = await res.json()
+        setAuditLogs(Array.isArray(json) ? json : [])
+      }
+    } catch {}
+  }
+
+  useEffect(() => {
+    fetchCommissions()
+    fetchDailyClosing()
+  }, [])
+
+  useEffect(() => {
+    fetchAuditLogs()
+  }, [auditModuleFilter])
+
+  const handleMarkCommissionPaid = async (id: string) => {
+    try {
+      const res = await fetch('/api/finance/commissions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'PAID' }),
+      })
+      if (res.ok) {
+        toast.success("Doctor commission marked as PAID!", { icon: <CheckCircle2 className="text-emerald-600" /> })
+        fetchCommissions()
+      }
+    } catch {
+      toast.error("Failed to update commission")
+    }
+  }
+
+  const handleSaveDailyClosing = async () => {
+    const actual = parseFloat(countedCash)
+    if (isNaN(actual) || actual < 0) {
+      toast.error("Please enter a valid actual cash count")
+      return
+    }
+    setIsSubmittingClosing(true)
+    try {
+      const res = await fetch('/api/finance/daily-closing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actualCash: actual,
+          notes: closingNotes,
+          closedBy: closingStaff,
+        }),
+      })
+      if (res.ok) {
+        toast.success("Daily cash drawer closing & reconciliation saved successfully!", { icon: <CheckCircle2 className="text-emerald-600" /> })
+        fetchDailyClosing()
+      } else {
+        const err = await res.json()
+        toast.error(err.error || "Failed to record closing")
+      }
+    } catch {
+      toast.error("Failed to record closing")
+    } finally {
+      setIsSubmittingClosing(false)
+    }
+  }
+
   useEffect(() => {
     async function fetchAnalytics() {
       setLoading(true)
@@ -518,11 +694,14 @@ export default function Analytics() {
 
           {/* ── Tabs for Analytics Sections ──────────────────────────────── */}
           <Tabs defaultValue="revenue" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
-              <TabsTrigger value="revenue">Revenue</TabsTrigger>
-              <TabsTrigger value="patients">Patients</TabsTrigger>
-              <TabsTrigger value="doctors">Doctors</TabsTrigger>
+            <TabsList className="flex flex-wrap h-auto p-1 bg-muted">
+              <TabsTrigger value="revenue">Revenue & Services</TabsTrigger>
+              <TabsTrigger value="patients">Patients & Demographics</TabsTrigger>
+              <TabsTrigger value="doctors">Doctor Performance</TabsTrigger>
               <TabsTrigger value="diagnostics">Diagnostics</TabsTrigger>
+              <TabsTrigger value="commissions" className="gap-1.5"><Coins className="size-3.5" /> Doctor Commissions</TabsTrigger>
+              <TabsTrigger value="cash_closing" className="gap-1.5"><Receipt className="size-3.5" /> Daily Cash Closing</TabsTrigger>
+              <TabsTrigger value="audit_trail" className="gap-1.5"><ShieldCheck className="size-3.5" /> Audit Trail</TabsTrigger>
             </TabsList>
 
             {/* ─── Revenue Tab ────────────────────────────────────────────── */}
@@ -896,6 +1075,389 @@ export default function Analytics() {
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            {/* ─── Doctor Commissions & Payouts Tab ────────────────────────── */}
+            <TabsContent value="commissions" className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Card className="bg-card rounded-xl border shadow-sm">
+                  <CardContent className="p-6">
+                    <p className="text-sm text-muted-foreground font-medium">Total Accrued Commissions</p>
+                    <p className="text-2xl font-bold mt-1 text-foreground">{formatBDTFull(commissionsData.summary.totalCommissions)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Calculated consultation & procedure splits</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card rounded-xl border border-amber-200 bg-amber-50/30 shadow-sm">
+                  <CardContent className="p-6">
+                    <p className="text-sm text-amber-800 font-medium">Pending Doctor Payouts</p>
+                    <p className="text-2xl font-bold mt-1 text-amber-900">{formatBDTFull(commissionsData.summary.pendingCommissions)}</p>
+                    <p className="text-xs text-amber-700 mt-1">Ready for disbursement</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card rounded-xl border border-emerald-200 bg-emerald-50/30 shadow-sm">
+                  <CardContent className="p-6">
+                    <p className="text-sm text-emerald-800 font-medium">Settled / Paid Payouts</p>
+                    <p className="text-2xl font-bold mt-1 text-emerald-900">{formatBDTFull(commissionsData.summary.paidCommissions)}</p>
+                    <p className="text-xs text-emerald-700 mt-1">Cleared with doctors</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card className="bg-card rounded-xl border shadow-sm">
+                <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-semibold">Doctor Revenue Share Ledger</CardTitle>
+                    <CardDescription>Automated calculation of doctor payout splits per service</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={fetchCommissions} className="text-xs h-8 gap-1">
+                    <RotateCcw className="size-3.5" /> Refresh
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/40">
+                        <TableHead>Doctor</TableHead>
+                        <TableHead>Service / Procedure</TableHead>
+                        <TableHead className="text-right">Service Bill (৳)</TableHead>
+                        <TableHead className="text-right">Share %</TableHead>
+                        <TableHead className="text-right font-bold text-emerald-900">Commission Amount (৳)</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Date</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {commissionsData.commissions.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                            No doctor commission records generated yet. Commissions generate automatically from completed consultations.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        commissionsData.commissions.map((c) => (
+                          <TableRow key={c.id}>
+                            <TableCell>
+                              <div className="font-semibold text-sm">{c.doctor?.name || "Doctor"}</div>
+                              <div className="text-xs text-muted-foreground">{c.doctor?.specialization || "Consultant"}</div>
+                            </TableCell>
+                            <TableCell className="text-sm">{c.serviceName}</TableCell>
+                            <TableCell className="text-sm text-right font-mono">{formatBDTFull(c.serviceAmount)}</TableCell>
+                            <TableCell className="text-sm text-right font-mono font-medium">{c.commissionRate}%</TableCell>
+                            <TableCell className="text-sm text-right font-mono font-bold text-emerald-800">
+                              {formatBDTFull(c.commissionAmount)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={c.status === "PAID" ? "outline" : "secondary"}
+                                className={c.status === "PAID" ? "bg-emerald-100 text-emerald-800 border-emerald-300" : "bg-amber-100 text-amber-800"}
+                              >
+                                {c.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-right text-muted-foreground">
+                              {new Date(c.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {c.status === "PENDING" && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleMarkCommissionPaid(c.id)}
+                                  className="h-7 text-xs bg-emerald-700 hover:bg-emerald-800 text-white"
+                                >
+                                  Mark Paid
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ─── Daily Cash Closing & Reconciliation Tab ──────────────────── */}
+            <TabsContent value="cash_closing" className="space-y-6">
+              {/* Day-End Live Cash Drawer Reconciliation Card */}
+              <Card className="bg-card rounded-xl border border-emerald-200/80 shadow-sm bg-gradient-to-br from-white via-emerald-50/20 to-white">
+                <CardHeader className="pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                      <CardTitle className="text-base font-semibold text-emerald-950 flex items-center gap-2">
+                        <Receipt className="size-5 text-emerald-700" />
+                        Today's Cash Drawer Reconciliation & Day Closing
+                      </CardTitle>
+                      <CardDescription>Verify cash drawer, count physical cash, and record day closing</CardDescription>
+                    </div>
+                    <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-800 w-fit">
+                      Shift Live Tracker
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                    <div className="bg-white p-3 rounded-lg border shadow-xs">
+                      <p className="text-[11px] text-muted-foreground uppercase font-medium">Cash Collected</p>
+                      <p className="text-lg font-bold text-foreground mt-1 font-mono">
+                        {formatBDTFull(dailyClosingData.liveToday.cashCollected)}
+                      </p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg border shadow-xs">
+                      <p className="text-[11px] text-muted-foreground uppercase font-medium">Card POS</p>
+                      <p className="text-lg font-bold text-blue-700 mt-1 font-mono">
+                        {formatBDTFull(dailyClosingData.liveToday.cardCollected)}
+                      </p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg border shadow-xs">
+                      <p className="text-[11px] text-muted-foreground uppercase font-medium">bKash/Nagad/Rocket</p>
+                      <p className="text-lg font-bold text-pink-700 mt-1 font-mono">
+                        {formatBDTFull(dailyClosingData.liveToday.digitalCollected)}
+                      </p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg border shadow-xs">
+                      <p className="text-[11px] text-muted-foreground uppercase font-medium">Day Expenses Deducted</p>
+                      <p className="text-lg font-bold text-red-600 mt-1 font-mono">
+                        -{formatBDTFull(dailyClosingData.liveToday.totalExpenses)}
+                      </p>
+                    </div>
+                    <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-200 shadow-xs col-span-2 sm:col-span-1">
+                      <p className="text-[11px] text-emerald-900 uppercase font-semibold">Expected Cash In Drawer</p>
+                      <p className="text-xl font-black text-emerald-800 mt-1 font-mono">
+                        {formatBDTFull(dailyClosingData.liveToday.expectedCashInHand)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-muted/40 rounded-xl border grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                    <div className="sm:col-span-3 space-y-1">
+                      <Label className="text-xs font-semibold">Actual Physical Cash Counted (৳) *</Label>
+                      <Input
+                        type="number"
+                        step={0.01}
+                        placeholder="Counted cash in hand"
+                        className="font-mono font-bold"
+                        value={countedCash}
+                        onChange={(e) => setCountedCash(e.target.value)}
+                      />
+                    </div>
+                    <div className="sm:col-span-3 space-y-1">
+                      <Label className="text-xs">Closing Officer / Staff</Label>
+                      <Input
+                        value={closingStaff}
+                        onChange={(e) => setClosingStaff(e.target.value)}
+                        placeholder="Staff Name"
+                      />
+                    </div>
+                    <div className="sm:col-span-3 space-y-1">
+                      <Label className="text-xs">Closing Notes (Optional)</Label>
+                      <Input
+                        value={closingNotes}
+                        onChange={(e) => setClosingNotes(e.target.value)}
+                        placeholder="Drawer notes / discrepancies"
+                      />
+                    </div>
+                    <div className="sm:col-span-3">
+                      {(() => {
+                        const actual = parseFloat(countedCash) || 0
+                        const expected = dailyClosingData.liveToday.expectedCashInHand
+                        const diff = actual - expected
+                        return (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[11px] font-semibold text-muted-foreground">Drawer Status:</span>
+                            <div className="text-xs font-bold">
+                              {Math.abs(diff) < 0.01 ? (
+                                <Badge className="bg-emerald-600 text-white gap-1"><CheckCircle2 className="size-3" /> Exact Match</Badge>
+                              ) : diff > 0 ? (
+                                <Badge className="bg-blue-600 text-white gap-1">+৳{diff.toFixed(2)} Surplus</Badge>
+                              ) : (
+                                <Badge variant="destructive" className="gap-1">-৳{Math.abs(diff).toFixed(2)} Shortage</Badge>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <Button
+                      onClick={handleSaveDailyClosing}
+                      disabled={isSubmittingClosing}
+                      className="bg-emerald-700 hover:bg-emerald-800 text-white gap-1.5"
+                    >
+                      <Receipt className="size-4" />
+                      {isSubmittingClosing ? "Closing Shift..." : "Submit Day-End Cash Closing & Shift Reconciliation"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Historical Daily Closings */}
+              <Card className="bg-card rounded-xl border shadow-sm">
+                <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-semibold">Daily Closing Audit History</CardTitle>
+                    <CardDescription>Official records of day-end cash settlements and variance logs</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={fetchDailyClosing} className="text-xs h-8 gap-1">
+                    <RotateCcw className="size-3.5" /> Refresh
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/40">
+                        <TableHead>Closing Date</TableHead>
+                        <TableHead className="text-right">Total Inflow (৳)</TableHead>
+                        <TableHead className="text-right">Cash In Drawer</TableHead>
+                        <TableHead className="text-right">Digital Inflow</TableHead>
+                        <TableHead className="text-right">Expenses Paid</TableHead>
+                        <TableHead className="text-right font-semibold">Expected Cash</TableHead>
+                        <TableHead className="text-right font-bold">Actual Counted</TableHead>
+                        <TableHead className="text-right">Variance</TableHead>
+                        <TableHead>Closed By</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dailyClosingData.history.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                            No past daily closings recorded. Complete today's shift reconciliation above to generate your first audit record.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        dailyClosingData.history.map((h) => (
+                          <TableRow key={h.id}>
+                            <TableCell className="font-medium text-sm">
+                              {new Date(h.closingDate).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-sm">{formatBDTFull(h.totalCollection)}</TableCell>
+                            <TableCell className="text-right font-mono text-sm">{formatBDTFull(h.cashInDrawer)}</TableCell>
+                            <TableCell className="text-right font-mono text-sm text-pink-700">{formatBDTFull(h.digitalCollection)}</TableCell>
+                            <TableCell className="text-right font-mono text-sm text-red-600">-{formatBDTFull(h.expensesDeducted)}</TableCell>
+                            <TableCell className="text-right font-mono text-sm font-semibold">{formatBDTFull(h.expectedCash)}</TableCell>
+                            <TableCell className="text-right font-mono text-sm font-bold text-emerald-800">{formatBDTFull(h.actualCash)}</TableCell>
+                            <TableCell className="text-right">
+                              {Math.abs(h.discrepancy) < 0.01 ? (
+                                <Badge variant="outline" className="text-emerald-700 border-emerald-300">0.00</Badge>
+                              ) : h.discrepancy > 0 ? (
+                                <Badge className="bg-blue-100 text-blue-800">+৳{h.discrepancy.toFixed(0)}</Badge>
+                              ) : (
+                                <Badge variant="destructive">-৳{Math.abs(h.discrepancy).toFixed(0)}</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{h.closedBy}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ─── Immutable Audit Trail Tab ───────────────────────────────── */}
+            <TabsContent value="audit_trail" className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-semibold flex items-center gap-2">
+                    <ShieldCheck className="size-5 text-emerald-700" />
+                    Immutable Compliance & Audit Trail
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Cryptographic ledger recording all staff accesses, updates, deletions, and patient file views with IP addresses
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select value={auditModuleFilter} onValueChange={setAuditModuleFilter}>
+                    <SelectTrigger className="w-[170px] h-8 text-xs">
+                      <SelectValue placeholder="All Modules" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">All Modules</SelectItem>
+                      <SelectItem value="AUTH">Authentication</SelectItem>
+                      <SelectItem value="PATIENTS">Patients</SelectItem>
+                      <SelectItem value="APPOINTMENTS">Appointments</SelectItem>
+                      <SelectItem value="EMR">EMR & Vitals</SelectItem>
+                      <SelectItem value="PRESCRIPTIONS">Prescriptions</SelectItem>
+                      <SelectItem value="BILLING">Billing & Refunds</SelectItem>
+                      <SelectItem value="DIAGNOSTICS">Diagnostics</SelectItem>
+                      <SelectItem value="PHARMACY">Pharmacy</SelectItem>
+                      <SelectItem value="BEDS">Daycare & Beds</SelectItem>
+                      <SelectItem value="FINANCE">Finance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="sm" onClick={fetchAuditLogs} className="h-8 text-xs gap-1">
+                    <RotateCcw className="size-3.5" /> Refresh
+                  </Button>
+                </div>
+              </div>
+
+              <Card className="bg-card rounded-xl border shadow-sm">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/40">
+                        <TableHead className="whitespace-nowrap">Timestamp</TableHead>
+                        <TableHead className="whitespace-nowrap">Action</TableHead>
+                        <TableHead className="whitespace-nowrap">Module</TableHead>
+                        <TableHead>Event Details</TableHead>
+                        <TableHead className="whitespace-nowrap">User ID</TableHead>
+                        <TableHead className="whitespace-nowrap">IP / Client</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {auditLogs.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                            No audit logs matching criteria.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        auditLogs.map((log) => (
+                          <TableRow key={log.id}>
+                            <TableCell className="text-xs font-mono text-muted-foreground whitespace-nowrap">
+                              {new Date(log.createdAt).toLocaleString()}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] font-bold ${
+                                  log.action === "CREATE"
+                                    ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                    : log.action === "DELETE"
+                                    ? "bg-rose-100 text-rose-800 border-rose-300"
+                                    : log.action === "UPDATE"
+                                    ? "bg-blue-100 text-blue-800 border-blue-300"
+                                    : "bg-purple-100 text-purple-800 border-purple-300"
+                                }`}
+                              >
+                                {log.action}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted">
+                                {log.module}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs max-w-md font-medium">
+                              {log.details}
+                            </TableCell>
+                            <TableCell className="text-xs font-mono text-muted-foreground">
+                              {log.userId || "System"}
+                            </TableCell>
+                            <TableCell className="text-xs font-mono text-muted-foreground">
+                              {log.ipAddress || "127.0.0.1"}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </>

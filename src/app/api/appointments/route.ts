@@ -155,9 +155,6 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(appointment, { status: 201 })
-    })
-
-    return NextResponse.json(appointment, { status: 201 })
   } catch (error) {
     console.error('Error creating appointment:', error)
     return NextResponse.json(

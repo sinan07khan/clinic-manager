@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useNavigationStore } from '@/store/navigation'
 import dynamic from 'next/dynamic'
@@ -34,6 +34,11 @@ import {
   LogOut,
   ChevronDown,
   KeyRound,
+  Stethoscope,
+  Video,
+  Pill,
+  Bed,
+  Building2,
 } from 'lucide-react'
 import type { NavModule } from '@/store/navigation'
 import { rolePermissions, roleLabels } from '@/lib/auth/permissions'
@@ -53,8 +58,12 @@ import { Button } from '@/components/ui/button'
 const Dashboard = dynamic(() => import('@/components/app/dashboard'), { ssr: false })
 const PatientsModule = dynamic(() => import('@/components/app/patients-module'), { ssr: false })
 const AppointmentsModule = dynamic(() => import('@/components/app/appointments-module'), { ssr: false })
+const EmrModule = dynamic(() => import('@/components/app/emr-module'), { ssr: false })
+const TelemedicineModule = dynamic(() => import('@/components/app/telemedicine-module'), { ssr: false })
 const BillingModule = dynamic(() => import('@/components/app/billing-module'), { ssr: false })
 const DiagnosticsModule = dynamic(() => import('@/components/app/diagnostics-module'), { ssr: false })
+const PharmacyModule = dynamic(() => import('@/components/app/pharmacy-module'), { ssr: false })
+const DaycareBedsModule = dynamic(() => import('@/components/app/daycare-beds-module'), { ssr: false })
 const InventoryModule = dynamic(() => import('@/components/app/inventory-module'), { ssr: false })
 const HrModule = dynamic(() => import('@/components/app/hr-module'), { ssr: false })
 const AnalyticsModule = dynamic(() => import('@/components/app/analytics'), { ssr: false })
@@ -62,17 +71,36 @@ const AnalyticsModule = dynamic(() => import('@/components/app/analytics'), { ss
 const allNavItems: { id: NavModule; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'patients', label: 'Patients', icon: Users },
-  { id: 'appointments', label: 'Appointments', icon: CalendarDays },
-  { id: 'billing', label: 'Billing & Finance', icon: Receipt },
+  { id: 'appointments', label: 'Appointments & Queue', icon: CalendarDays },
+  { id: 'emr', label: 'EMR & Prescriptions', icon: Stethoscope },
+  { id: 'telemedicine', label: 'Telemedicine', icon: Video },
+  { id: 'billing', label: 'Billing & POS', icon: Receipt },
   { id: 'diagnostics', label: 'Diagnostics & Lab', icon: FlaskConical },
-  { id: 'inventory', label: 'Inventory & Stock', icon: Package },
+  { id: 'pharmacy', label: 'Pharmacy & Stock', icon: Pill },
+  { id: 'daycare_beds', label: 'Beds & Daycare', icon: Bed },
+  { id: 'inventory', label: 'General Inventory', icon: Package },
   { id: 'hr', label: 'HR & Payroll', icon: UserCog },
-  { id: 'analytics', label: 'Analytics & Reports', icon: BarChart3 },
+  { id: 'analytics', label: 'Analytics & Audit', icon: BarChart3 },
 ]
 
 function AppShell() {
   const { data: session } = useSession()
-  const { activeModule, setActiveModule } = useNavigationStore()
+  const { activeModule, setActiveModule, selectedBranch, setSelectedBranch } = useNavigationStore()
+  const [branches, setBranches] = useState<Array<{ id: string; name: string; code: string; isMain: boolean }>>([])
+
+  useEffect(() => {
+    fetch('/api/branches')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setBranches(data)
+          if (!selectedBranch) {
+            setSelectedBranch(data[0].name)
+          }
+        }
+      })
+      .catch(() => {})
+  }, [selectedBranch, setSelectedBranch])
 
   const userRole = session?.user?.role
   const userName = session?.user?.name || 'User'
@@ -206,6 +234,49 @@ function AppShell() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            {branches.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs font-medium border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100/60 text-emerald-900 cursor-pointer"
+                  >
+                    <Building2 className="size-3.5 text-emerald-600" />
+                    <span className="max-w-[140px] md:max-w-[200px] truncate">
+                      {selectedBranch || branches[0].name}
+                    </span>
+                    <ChevronDown className="size-3 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60">
+                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                    Switch Clinic Branch
+                  </div>
+                  <DropdownMenuSeparator />
+                  {branches.map((b) => (
+                    <DropdownMenuItem
+                      key={b.id}
+                      onClick={() => setSelectedBranch(b.name)}
+                      className={`flex items-center justify-between text-xs cursor-pointer ${
+                        selectedBranch === b.name ? 'bg-emerald-50 text-emerald-800 font-medium' : ''
+                      }`}
+                    >
+                      <div className="flex flex-col">
+                        <span>{b.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{b.code}</span>
+                      </div>
+                      {b.isMain && (
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">
+                          Main
+                        </span>
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             <Button
               variant="ghost"
               size="sm"
@@ -225,8 +296,12 @@ function AppShell() {
           {activeModule === 'dashboard' && <Dashboard />}
           {activeModule === 'patients' && <PatientsModule />}
           {activeModule === 'appointments' && <AppointmentsModule />}
+          {activeModule === 'emr' && <EmrModule />}
+          {activeModule === 'telemedicine' && <TelemedicineModule />}
           {activeModule === 'billing' && <BillingModule />}
           {activeModule === 'diagnostics' && <DiagnosticsModule />}
+          {activeModule === 'pharmacy' && <PharmacyModule />}
+          {activeModule === 'daycare_beds' && <DaycareBedsModule />}
           {activeModule === 'inventory' && <InventoryModule />}
           {activeModule === 'hr' && <HrModule />}
           {activeModule === 'analytics' && <AnalyticsModule />}

@@ -20,6 +20,7 @@ import {
   Printer,
   AlertCircle,
   CheckCircle2,
+  RotateCcw,
 } from "lucide-react"
 import { format } from "date-fns"
 import {
@@ -119,6 +120,20 @@ interface Payment {
   invoice?: { invoiceNo: string; patient?: { name: string } }
 }
 
+export interface RefundVoucher {
+  id: string
+  voucherNo: string
+  invoiceId: string
+  amount: number
+  reason: string
+  approvedBy: string
+  createdAt: string
+  invoice?: {
+    invoiceNo: string
+    patient?: { name: string; patientId: string; phone?: string }
+  }
+}
+
 interface Invoice {
   id: string
   invoiceNo: string
@@ -175,6 +190,9 @@ const METHOD_COLORS: Record<string, string> = {
   CASH: "bg-green-100 text-green-800",
   CARD: "bg-blue-100 text-blue-800",
   BKASH: "bg-pink-100 text-pink-800",
+  NAGAD: "bg-orange-100 text-orange-800",
+  ROCKET: "bg-purple-100 text-purple-800",
+  BANK_TRANSFER: "bg-cyan-100 text-cyan-800",
   OTHER: "bg-gray-100 text-gray-800",
 }
 
@@ -182,6 +200,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   CONSULTATION: "Consultation",
   LAB_TEST: "Lab Test",
   MEDICINE: "Medicine",
+  DAYCARE_BED: "Daycare & Bed",
+  PROCEDURE: "Minor Procedure / OT",
   SALARY: "Salary",
   UTILITY: "Utility",
   MAINTENANCE: "Maintenance",
@@ -250,6 +270,26 @@ export default function BillingModule() {
   // Cancel Invoice Dialog
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+
+  // ─── Due Ledger & Refund State ───
+  const [dueSearch, setDueSearch] = useState("")
+  const [refunds, setRefunds] = useState<RefundVoucher[]>([])
+  const [refundLoading, setRefundLoading] = useState(false)
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false)
+  const [refundInvoiceId, setRefundInvoiceId] = useState("")
+  const [refundAmount, setRefundAmount] = useState("")
+  const [refundReason, setRefundReason] = useState("")
+  const [refundApprovedBy, setRefundApprovedBy] = useState("Clinic Manager")
+  const [issuingRefund, setIssuingRefund] = useState(false)
+
+  // ─── Split Payment & Print Formats ───
+  const [isSplitPayment, setIsSplitPayment] = useState(false)
+  const [splitMethod1, setSplitMethod1] = useState("CASH")
+  const [splitAmount1, setSplitAmount1] = useState("")
+  const [splitMethod2, setSplitMethod2] = useState("BKASH")
+  const [splitAmount2, setSplitAmount2] = useState("")
+  const [printFormat, setPrintFormat] = useState<'a4' | 'pos'>('a4')
+  const [discountPreset, setDiscountPreset] = useState("none")
 
   // ─── Payments Tab State ───
   const [payments, setPayments] = useState<Payment[]>([])
@@ -438,10 +478,26 @@ export default function BillingModule() {
     }
   }, [])
 
+  const fetchRefunds = useCallback(async () => {
+    setRefundLoading(true)
+    try {
+      const res = await fetch("/api/refunds")
+      if (res.ok) {
+        const data = await res.json()
+        setRefunds(Array.isArray(data) ? data : [])
+      }
+    } catch {
+      // silent
+    } finally {
+      setRefundLoading(false)
+    }
+  }, [])
+
   useEffect(() => { fetchInvoices() }, [fetchInvoices])
   useEffect(() => { fetchPayments() }, [fetchPayments])
   useEffect(() => { fetchExpenses() }, [fetchExpenses])
   useEffect(() => { fetchFinancialSummary() }, [fetchFinancialSummary])
+  useEffect(() => { fetchRefunds() }, [fetchRefunds])
 
   // ─── Patient Search for Create Invoice ───
 
@@ -572,14 +628,77 @@ export default function BillingModule() {
   const openPaymentDialog = (invoice: Invoice) => {
     setSelectedInvoice(invoice)
     const remaining = invoice.netAmount - (invoice.totalPaid || 0)
-    setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : "")
+    const remNum = remaining > 0 ? remaining : 0
+    setPaymentAmount(remNum > 0 ? remNum.toFixed(2) : "")
     setPaymentMethod("CASH")
     setPaymentReference("")
+    setIsSplitPayment(false)
+    setSplitMethod1("CASH")
+    setSplitAmount1((remNum / 2).toFixed(2))
+    setSplitMethod2("BKASH")
+    setSplitAmount2((remNum / 2).toFixed(2))
     setPaymentDialogOpen(true)
   }
 
   const handleRecordPayment = async () => {
     if (!selectedInvoice) return
+
+    if (isSplitPayment) {
+      const amt1 = parseFloat(splitAmount1) || 0
+      const amt2 = parseFloat(splitAmount2) || 0
+      if (amt1 <= 0 || amt2 <= 0) {
+        toast.error("Both split payment amounts must be greater than 0")
+        return
+      }
+      setRecordingPayment(true)
+      try {
+        const res1 = await fetch("/api/payments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            invoiceId: selectedInvoice.id,
+            amount: amt1,
+            method: splitMethod1,
+            reference: `Split 1/2 ${paymentReference || ""}`.trim(),
+          }),
+        })
+        if (!res1.ok) {
+          const err = await res1.json()
+          throw new Error(err.error || "First split payment failed")
+        }
+        const res2 = await fetch("/api/payments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            invoiceId: selectedInvoice.id,
+            amount: amt2,
+            method: splitMethod2,
+            reference: `Split 2/2 ${paymentReference || ""}`.trim(),
+          }),
+        })
+        if (!res2.ok) {
+          const err = await res2.json()
+          throw new Error(err.error || "Second split payment failed")
+        }
+        toast.success("Split payments recorded successfully!", { icon: <CheckCircle2 className="text-green-600" /> })
+        setPaymentDialogOpen(false)
+        setIsSplitPayment(false)
+        const detailRes = await fetch(`/api/invoices/${selectedInvoice.id}`)
+        if (detailRes.ok) {
+          const detailData = await detailRes.json()
+          setSelectedInvoice({ ...detailData, payments: detailData.payments ?? [], items: detailData.items ?? [] })
+        }
+        fetchInvoices()
+        fetchPayments()
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Failed to record split payment"
+        toast.error(msg)
+      } finally {
+        setRecordingPayment(false)
+      }
+      return
+    }
+
     const amt = parseFloat(paymentAmount)
     if (!amt || amt <= 0) {
       toast.error("Please enter a valid amount")
@@ -618,6 +737,47 @@ export default function BillingModule() {
       toast.error("Failed to record payment")
     } finally {
       setRecordingPayment(false)
+    }
+  }
+
+  const handleCreateRefund = async () => {
+    if (!refundInvoiceId || !refundAmount || !refundReason) {
+      toast.error("Please fill in invoice, amount, and reason")
+      return
+    }
+    const amt = parseFloat(refundAmount)
+    if (isNaN(amt) || amt <= 0) {
+      toast.error("Please enter a valid refund amount")
+      return
+    }
+    setIssuingRefund(true)
+    try {
+      const res = await fetch("/api/refunds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoiceId: refundInvoiceId,
+          amount: amt,
+          reason: refundReason,
+          approvedBy: refundApprovedBy || "Clinic Manager",
+        }),
+      })
+      if (res.ok) {
+        toast.success("Refund voucher issued successfully!", { icon: <CheckCircle2 className="text-green-600" /> })
+        setRefundDialogOpen(false)
+        setRefundInvoiceId("")
+        setRefundAmount("")
+        setRefundReason("")
+        fetchRefunds()
+        fetchInvoices()
+      } else {
+        const err = await res.json()
+        toast.error(err.error || "Failed to issue refund")
+      }
+    } catch {
+      toast.error("Failed to issue refund")
+    } finally {
+      setIssuingRefund(false)
     }
   }
 
@@ -791,12 +951,18 @@ export default function BillingModule() {
       </div>
 
       <Tabs defaultValue="invoices" className="space-y-4">
-        <TabsList className="bg-green-50/50 border border-green-200/50">
+        <TabsList className="bg-green-50/50 border border-green-200/50 flex-wrap h-auto p-1">
           <TabsTrigger value="invoices" className="data-[state=active]:bg-green-700 data-[state=active]:text-white gap-1.5">
             <FileText className="size-4" /> Invoices
           </TabsTrigger>
           <TabsTrigger value="payments" className="data-[state=active]:bg-green-700 data-[state=active]:text-white gap-1.5">
             <CreditCard className="size-4" /> Payments
+          </TabsTrigger>
+          <TabsTrigger value="due_ledger" className="data-[state=active]:bg-green-700 data-[state=active]:text-white gap-1.5">
+            <AlertCircle className="size-4 text-amber-500" /> Due Ledger
+          </TabsTrigger>
+          <TabsTrigger value="refunds" className="data-[state=active]:bg-green-700 data-[state=active]:text-white gap-1.5">
+            <RotateCcw className="size-4" /> Refund Vouchers
           </TabsTrigger>
           <TabsTrigger value="expenses" className="data-[state=active]:bg-green-700 data-[state=active]:text-white gap-1.5">
             <Receipt className="size-4" /> Expenses
@@ -1008,7 +1174,189 @@ export default function BillingModule() {
           )}
         </TabsContent>
 
-        {/* ═══════════════════════════ TAB 3: EXPENSES ═══════════════════════════ */}
+        {/* ═══════════════════════════ TAB: DUE LEDGER ═══════════════════════════ */}
+        <TabsContent value="due_ledger" className="space-y-4">
+          {(() => {
+            const dueInvoices = invoices.filter(
+              (inv) => inv.status !== "CANCELLED" && (inv.netAmount - (inv.totalPaid || 0)) > 0.01
+            ).filter((inv) => {
+              if (!dueSearch) return true
+              const q = dueSearch.toLowerCase()
+              return (
+                inv.invoiceNo.toLowerCase().includes(q) ||
+                (inv.patient?.name && inv.patient.name.toLowerCase().includes(q)) ||
+                (inv.patient?.phone && inv.patient.phone.includes(q))
+              )
+            })
+
+            const totalDueAmount = dueInvoices.reduce(
+              (sum, inv) => sum + Math.max(0, inv.netAmount - (inv.totalPaid || 0)),
+              0
+            )
+
+            return (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <Card className="border-amber-200 bg-amber-50/40">
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-amber-800 font-medium uppercase tracking-wider">Total Outstanding Due</p>
+                        <p className="text-2xl font-bold text-amber-900 mt-1">{CURRENCY(totalDueAmount)}</p>
+                      </div>
+                      <AlertCircle className="size-8 text-amber-600 opacity-80" />
+                    </CardContent>
+                  </Card>
+                  <Card className="border-green-100">
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Overdue Patient Accounts</p>
+                        <p className="text-2xl font-bold mt-1">{dueInvoices.length}</p>
+                      </div>
+                      <CreditCard className="size-8 text-muted-foreground opacity-50" />
+                    </CardContent>
+                  </Card>
+                  <Card className="border-green-100">
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Settlement Rate</p>
+                        <p className="text-2xl font-bold text-green-700 mt-1">
+                          {invoices.length > 0 ? Math.round(((invoices.length - dueInvoices.length) / invoices.length) * 100) : 100}%
+                        </p>
+                      </div>
+                      <TrendingUp className="size-8 text-green-600 opacity-70" />
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="relative max-w-sm flex-1">
+                    <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search due accounts by patient or invoice #..."
+                      value={dueSearch}
+                      onChange={(e) => setDueSearch(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+
+                <Card className="border-green-100">
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-green-50/50">
+                          <TableHead>Invoice #</TableHead>
+                          <TableHead>Patient Details</TableHead>
+                          <TableHead>Invoice Date</TableHead>
+                          <TableHead>Days Overdue</TableHead>
+                          <TableHead className="text-right">Net Amount</TableHead>
+                          <TableHead className="text-right">Paid</TableHead>
+                          <TableHead className="text-right font-bold text-amber-900">Due Balance</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {dueInvoices.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                              No outstanding patient due records found. All accounts are settled!
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          dueInvoices.map((inv) => {
+                            const due = inv.netAmount - (inv.totalPaid || 0)
+                            const days = Math.floor((Date.now() - new Date(inv.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+                            return (
+                              <TableRow key={inv.id}>
+                                <TableCell className="font-mono font-medium">{inv.invoiceNo}</TableCell>
+                                <TableCell>
+                                  <div className="font-medium">{inv.patient?.name || "Walk-in"}</div>
+                                  <div className="text-xs text-muted-foreground">{inv.patient?.phone || "—"}</div>
+                                </TableCell>
+                                <TableCell className="text-sm">{format(new Date(inv.createdAt), "dd MMM yyyy")}</TableCell>
+                                <TableCell>
+                                  <Badge variant={days > 30 ? "destructive" : days > 7 ? "secondary" : "outline"} className="text-xs">
+                                    {days} days
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right font-mono">{CURRENCY(inv.netAmount)}</TableCell>
+                                <TableCell className="text-right font-mono text-green-700">{CURRENCY(inv.totalPaid || 0)}</TableCell>
+                                <TableCell className="text-right font-mono font-bold text-amber-800">{CURRENCY(due)}</TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => openPaymentDialog(inv)}
+                                    className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs h-7 gap-1"
+                                  >
+                                    <DollarSign className="size-3" /> Settle Due
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </>
+            )
+          })()}
+        </TabsContent>
+
+        {/* ═══════════════════════════ TAB: REFUND VOUCHERS ═══════════════════════════ */}
+        <TabsContent value="refunds" className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold">Audit-Approved Refund Vouchers</h3>
+              <p className="text-xs text-muted-foreground">Vouchers issued for returned medications, cancelled procedures, or overpayments</p>
+            </div>
+            <Button onClick={() => setRefundDialogOpen(true)} variant="outline" className="gap-1.5 border-rose-200 text-rose-700 hover:bg-rose-50">
+              <RotateCcw className="size-4" /> Issue Refund Voucher
+            </Button>
+          </div>
+
+          <Card className="border-rose-100">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-rose-50/50">
+                    <TableHead>Voucher #</TableHead>
+                    <TableHead>Invoice #</TableHead>
+                    <TableHead>Patient</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead>Approved By</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Refund Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {refundLoading ? (
+                    <TableRow><TableCell colSpan={7}><TableSkeleton /></TableCell></TableRow>
+                  ) : refunds.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        No refund vouchers issued yet.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    refunds.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-mono font-bold text-rose-800">{r.voucherNo}</TableCell>
+                        <TableCell className="font-mono">{r.invoice?.invoiceNo || r.invoiceId}</TableCell>
+                        <TableCell>{r.invoice?.patient?.name || "Patient"}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">{r.reason}</TableCell>
+                        <TableCell className="text-xs font-medium">{r.approvedBy}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{format(new Date(r.createdAt), "dd MMM yyyy, hh:mm a")}</TableCell>
+                        <TableCell className="text-right font-mono font-bold text-rose-700">{CURRENCY(r.amount)}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
         <TabsContent value="expenses" className="space-y-4">
           <div className="flex justify-end">
             <Button onClick={() => { resetExpenseForm(); setExpenseDialogOpen(true) }} className="bg-green-700 hover:bg-green-800 text-white gap-1.5">
@@ -1317,10 +1665,12 @@ export default function BillingModule() {
                       <Select value={item.category} onValueChange={(v) => updateLineItem(idx, "category", v)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="CONSULTATION">Consultation</SelectItem>
-                          <SelectItem value="LAB_TEST">Lab Test</SelectItem>
-                          <SelectItem value="MEDICINE">Medicine</SelectItem>
-                          <SelectItem value="OTHER">Other</SelectItem>
+                          <SelectItem value="CONSULTATION">Doctor Consultation</SelectItem>
+                          <SelectItem value="LAB_TEST">Pathology / Lab Test</SelectItem>
+                          <SelectItem value="MEDICINE">Pharmacy & Medicine</SelectItem>
+                          <SelectItem value="DAYCARE_BED">Daycare & Bed Charge</SelectItem>
+                          <SelectItem value="PROCEDURE">Minor Procedure / OT</SelectItem>
+                          <SelectItem value="OTHER">Other Service</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1362,14 +1712,38 @@ export default function BillingModule() {
 
             <Separator />
 
-            {/* Totals */}
-            <div className="space-y-2 bg-muted/30 p-4 rounded-lg">
+            {/* Totals & Discounts */}
+            <div className="space-y-3 bg-muted/30 p-4 rounded-lg">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-mono">{CURRENCY(totalAmount)}</span>
               </div>
               <div className="flex items-center justify-between gap-4 text-sm">
-                <Label className="text-muted-foreground shrink-0">Discount (৳)</Label>
+                <Label className="text-muted-foreground shrink-0">Corporate / Tie-up Preset</Label>
+                <Select
+                  value={discountPreset}
+                  onValueChange={(val) => {
+                    setDiscountPreset(val)
+                    if (val === 'staff') setDiscount(Math.round(totalAmount * 0.15))
+                    else if (val === 'corporate') setDiscount(Math.round(totalAmount * 0.20))
+                    else if (val === 'senior') setDiscount(Math.round(totalAmount * 0.10))
+                    else if (val === 'none') setDiscount(0)
+                  }}
+                >
+                  <SelectTrigger className="w-48 text-xs">
+                    <SelectValue placeholder="Standard / None" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Standard (No Discount)</SelectItem>
+                    <SelectItem value="staff">Staff Concession (15%)</SelectItem>
+                    <SelectItem value="corporate">Corporate Partner (20%)</SelectItem>
+                    <SelectItem value="senior">Senior Citizen (10%)</SelectItem>
+                    <SelectItem value="custom">Custom Concession</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <Label className="text-muted-foreground shrink-0">Discount Amount (৳)</Label>
                 <Input
                   type="number"
                   min={0}
@@ -1408,108 +1782,181 @@ export default function BillingModule() {
             </div>
           ) : selectedInvoice ? (
             <div className="space-y-6" id="invoice-printable">
-              {/* Invoice Header */}
-              <div className="text-center border-b pb-4">
-                <h2 className="text-xl font-bold text-green-800">INVOICE</h2>
-                <p className="text-2xl font-mono font-bold mt-1">{selectedInvoice.invoiceNo}</p>
-                <p className="text-sm text-muted-foreground mt-1">{format(new Date(selectedInvoice.createdAt), "dd MMM yyyy, hh:mm a")}</p>
-                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border mt-2 ${STATUS_COLORS[selectedInvoice.status]}`}>
-                  {STATUS_LABELS[selectedInvoice.status]}
-                </span>
+              {/* Layout Switcher & Print */}
+              <div className="flex items-center justify-between pb-3 border-b">
+                <div className="flex items-center gap-1 bg-muted p-1 rounded-md text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setPrintFormat('a4')}
+                    className={`px-3 py-1 rounded-sm font-medium transition-colors ${
+                      printFormat === 'a4' ? 'bg-white shadow text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    A4 Letterhead
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrintFormat('pos')}
+                    className={`px-3 py-1 rounded-sm font-medium transition-colors ${
+                      printFormat === 'pos' ? 'bg-white shadow text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    POS Receipt (80mm)
+                  </button>
+                </div>
+                <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs" onClick={() => window.print()}>
+                  <Printer className="size-3.5" /> Print
+                </Button>
               </div>
 
-              {/* Patient & Appointment Info */}
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Patient</p>
-                  <p className="font-semibold">{selectedInvoice.patient?.name || "—"}</p>
-                  <p className="text-muted-foreground">{selectedInvoice.patient?.phone || ""}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Appointment</p>
-                  <p className="font-semibold">
-                    {selectedInvoice.appointment
-                      ? `${format(new Date(selectedInvoice.appointment.date), "dd MMM yyyy")} — ${selectedInvoice.appointment?.type}`
-                      : "N/A"}
-                  </p>
-                  {selectedInvoice.appointment?.doctor && (
-                    <p className="text-muted-foreground">Dr. {selectedInvoice.appointment.doctor.name}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Items Table */}
-              <div>
-                <p className="text-sm font-semibold mb-2">Items</p>
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead>Description</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="text-right">Qty</TableHead>
-                      <TableHead className="text-right">Unit Price</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedInvoice.items?.map((item, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell>{item.description}</TableCell>
-                        <TableCell><Badge variant="outline" className="text-xs">{item.category}</Badge></TableCell>
-                        <TableCell className="text-right">{item.quantity}</TableCell>
-                        <TableCell className="text-right font-mono">{CURRENCY(item.unitPrice)}</TableCell>
-                        <TableCell className="text-right font-mono font-medium">{CURRENCY(item.total)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Totals */}
-              <div className="bg-muted/30 p-4 rounded-lg space-y-1.5 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-mono">{CURRENCY(selectedInvoice.totalAmount)}</span>
-                </div>
-                {selectedInvoice.discount > 0 && (
-                  <div className="flex justify-between text-orange-600">
-                    <span>Discount</span>
-                    <span className="font-mono">-{CURRENCY(selectedInvoice.discount)}</span>
+              {printFormat === 'pos' ? (
+                /* Thermal 80mm POS Receipt View */
+                <div className="font-mono text-xs max-w-sm mx-auto p-4 border-2 border-dashed border-gray-300 rounded bg-white text-black space-y-2.5 shadow-sm">
+                  <div className="text-center space-y-0.5 border-b pb-2">
+                    <p className="font-bold text-sm tracking-wide">CLINIC MANAGER</p>
+                    <p className="text-[11px] text-gray-500">Quality Healthcare & Diagnostics</p>
+                    <p className="text-[10px]">Hotline: +880 1700-000000</p>
+                    <p className="text-[11px] font-semibold mt-1">*** CASH RECEIPT (POS-80MM) ***</p>
                   </div>
-                )}
-                <Separator />
-                <div className="flex justify-between font-bold text-lg">
-                  <span>Net Amount</span>
-                  <span className="font-mono text-green-800">{CURRENCY(selectedInvoice.netAmount)}</span>
-                </div>
-              </div>
-
-              {/* Payment History */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-semibold">Payment History</p>
-                  <p className="text-sm text-muted-foreground">
-                    Paid: <span className="font-mono font-semibold text-green-800">{CURRENCY(selectedInvoice.totalPaid || 0)}</span>
-                    {" / "}{CURRENCY(selectedInvoice.netAmount)}
-                  </p>
-                </div>
-                {selectedInvoice.payments && selectedInvoice.payments.length > 0 ? (
-                  <div className="space-y-2">
-                    {selectedInvoice.payments.map((pmt) => (
-                      <div key={pmt.id} className="flex items-center justify-between bg-muted/30 rounded-md px-3 py-2 text-sm">
-                        <div className="flex items-center gap-3">
-                          <span className="text-muted-foreground">{format(new Date(pmt.createdAt), "dd MMM yyyy")}</span>
-                          <span className={`px-1.5 py-0.5 rounded text-xs ${METHOD_COLORS[pmt.method]}`}>{pmt.method}</span>
-                          {pmt.reference && <span className="text-muted-foreground text-xs">Ref: {pmt.reference}</span>}
-                        </div>
-                        <span className="font-mono font-medium">{CURRENCY(pmt.amount)}</span>
+                  <div className="text-[11px] space-y-0.5 border-b pb-2">
+                    <div className="flex justify-between"><span>Inv:</span><span className="font-bold">{selectedInvoice.invoiceNo}</span></div>
+                    <div className="flex justify-between"><span>Date:</span><span>{format(new Date(selectedInvoice.createdAt), "dd/MM/yyyy HH:mm")}</span></div>
+                    <div className="flex justify-between"><span>Patient:</span><span className="font-semibold">{selectedInvoice.patient?.name || "Walk-in"}</span></div>
+                    {selectedInvoice.patient?.phone && <div className="flex justify-between"><span>Phone:</span><span>{selectedInvoice.patient.phone}</span></div>}
+                  </div>
+                  <div className="border-b pb-2 space-y-1">
+                    <div className="flex justify-between font-bold border-b pb-1 text-[11px]">
+                      <span>ITEM</span>
+                      <span>QTY x RATE</span>
+                      <span>AMT</span>
+                    </div>
+                    {selectedInvoice.items?.map((item, idx) => (
+                      <div key={idx} className="flex justify-between text-[11px]">
+                        <span className="truncate max-w-[130px]">{item.description}</span>
+                        <span>{item.quantity} x {item.unitPrice}</span>
+                        <span>৳{item.total}</span>
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground py-2">No payments recorded yet.</p>
-                )}
-              </div>
+                  <div className="text-[11px] space-y-1 border-b pb-2">
+                    <div className="flex justify-between"><span>Subtotal:</span><span>{CURRENCY(selectedInvoice.totalAmount)}</span></div>
+                    {selectedInvoice.discount > 0 && <div className="flex justify-between text-gray-600"><span>Discount:</span><span>-{CURRENCY(selectedInvoice.discount)}</span></div>}
+                    <div className="flex justify-between font-bold text-xs pt-1 border-t"><span>NET TOTAL:</span><span>{CURRENCY(selectedInvoice.netAmount)}</span></div>
+                    <div className="flex justify-between"><span>Paid:</span><span className="font-bold">{CURRENCY(selectedInvoice.totalPaid || 0)}</span></div>
+                    <div className="flex justify-between"><span>Due Balance:</span><span className="font-bold">৳{Math.max(0, selectedInvoice.netAmount - (selectedInvoice.totalPaid || 0)).toFixed(2)}</span></div>
+                  </div>
+                  <div className="text-center text-[10px] text-gray-500 pt-1">
+                    <p>Thank you for choosing Clinic Manager!</p>
+                    <p>Software Powered by Clinic Management System</p>
+                  </div>
+                </div>
+              ) : (
+                /* Standard A4 View */
+                <>
+                  {/* Invoice Header */}
+                  <div className="text-center border-b pb-4">
+                    <h2 className="text-xl font-bold text-green-800">INVOICE</h2>
+                    <p className="text-2xl font-mono font-bold mt-1">{selectedInvoice.invoiceNo}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{format(new Date(selectedInvoice.createdAt), "dd MMM yyyy, hh:mm a")}</p>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border mt-2 ${STATUS_COLORS[selectedInvoice.status]}`}>
+                      {STATUS_LABELS[selectedInvoice.status]}
+                    </span>
+                  </div>
+
+                  {/* Patient & Appointment Info */}
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Patient</p>
+                      <p className="font-semibold">{selectedInvoice.patient?.name || "—"}</p>
+                      <p className="text-muted-foreground">{selectedInvoice.patient?.phone || ""}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">Appointment</p>
+                      <p className="font-semibold">
+                        {selectedInvoice.appointment
+                          ? `${format(new Date(selectedInvoice.appointment.date), "dd MMM yyyy")} — ${selectedInvoice.appointment?.type}`
+                          : "N/A"}
+                      </p>
+                      {selectedInvoice.appointment?.doctor && (
+                        <p className="text-muted-foreground">Dr. {selectedInvoice.appointment.doctor.name}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Items Table */}
+                  <div>
+                    <p className="text-sm font-semibold mb-2">Items</p>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead>Description</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead className="text-right">Qty</TableHead>
+                          <TableHead className="text-right">Unit Price</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedInvoice.items?.map((item, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>{item.description}</TableCell>
+                            <TableCell><Badge variant="outline" className="text-xs">{item.category}</Badge></TableCell>
+                            <TableCell className="text-right">{item.quantity}</TableCell>
+                            <TableCell className="text-right font-mono">{CURRENCY(item.unitPrice)}</TableCell>
+                            <TableCell className="text-right font-mono font-medium">{CURRENCY(item.total)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Totals */}
+                  <div className="bg-muted/30 p-4 rounded-lg space-y-1.5 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <span className="font-mono">{CURRENCY(selectedInvoice.totalAmount)}</span>
+                    </div>
+                    {selectedInvoice.discount > 0 && (
+                      <div className="flex justify-between text-orange-600">
+                        <span>Discount</span>
+                        <span className="font-mono">-{CURRENCY(selectedInvoice.discount)}</span>
+                      </div>
+                    )}
+                    <Separator />
+                    <div className="flex justify-between font-bold text-lg">
+                      <span>Net Amount</span>
+                      <span className="font-mono text-green-800">{CURRENCY(selectedInvoice.netAmount)}</span>
+                    </div>
+                  </div>
+
+                  {/* Payment History */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-semibold">Payment History</p>
+                      <p className="text-sm text-muted-foreground">
+                        Paid: <span className="font-mono font-semibold text-green-800">{CURRENCY(selectedInvoice.totalPaid || 0)}</span>
+                        {" / "}{CURRENCY(selectedInvoice.netAmount)}
+                      </p>
+                    </div>
+                    {selectedInvoice.payments && selectedInvoice.payments.length > 0 ? (
+                      <div className="space-y-2">
+                        {selectedInvoice.payments.map((pmt) => (
+                          <div key={pmt.id} className="flex items-center justify-between bg-muted/30 rounded-md px-3 py-2 text-sm">
+                            <div className="flex items-center gap-3">
+                              <span className="text-muted-foreground">{format(new Date(pmt.createdAt), "dd MMM yyyy")}</span>
+                              <span className={`px-1.5 py-0.5 rounded text-xs ${METHOD_COLORS[pmt.method] || "bg-gray-100"}`}>{pmt.method}</span>
+                              {pmt.reference && <span className="text-muted-foreground text-xs">Ref: {pmt.reference}</span>}
+                            </div>
+                            <span className="font-mono font-medium">{CURRENCY(pmt.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground py-2">No payments recorded yet.</p>
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* Actions */}
               <div className="flex gap-2 pt-2">
@@ -1543,37 +1990,111 @@ export default function BillingModule() {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Amount (৳) *</Label>
-              <Input
-                type="number"
-                min={0.01}
-                step={0.01}
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-                placeholder="Enter payment amount"
+            <div className="flex items-center justify-between bg-muted/40 p-2.5 rounded-lg border">
+              <div className="flex flex-col">
+                <span className="text-xs font-semibold">Split Payment Mode</span>
+                <span className="text-[11px] text-muted-foreground">Accept payment across two different channels</span>
+              </div>
+              <input
+                type="checkbox"
+                checked={isSplitPayment}
+                onChange={(e) => setIsSplitPayment(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Payment Method *</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CASH">Cash</SelectItem>
-                  <SelectItem value="CARD">Card</SelectItem>
-                  <SelectItem value="BKASH">bKash</SelectItem>
-                  <SelectItem value="OTHER">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {isSplitPayment ? (
+              <div className="space-y-3 bg-muted/20 p-3 rounded-lg border">
+                {/* Split 1 */}
+                <div className="space-y-1">
+                  <span className="text-xs font-semibold text-green-800">Payment 1</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select value={splitMethod1} onValueChange={setSplitMethod1}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CASH">Cash</SelectItem>
+                        <SelectItem value="CARD">Debit/Credit Card</SelectItem>
+                        <SelectItem value="BKASH">bKash</SelectItem>
+                        <SelectItem value="NAGAD">Nagad</SelectItem>
+                        <SelectItem value="ROCKET">Rocket</SelectItem>
+                        <SelectItem value="BANK_TRANSFER">Bank</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      step={0.01}
+                      placeholder="Amount 1"
+                      className="h-8 text-xs"
+                      value={splitAmount1}
+                      onChange={(e) => setSplitAmount1(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Split 2 */}
+                <div className="space-y-1">
+                  <span className="text-xs font-semibold text-green-800">Payment 2</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select value={splitMethod2} onValueChange={setSplitMethod2}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="BKASH">bKash</SelectItem>
+                        <SelectItem value="NAGAD">Nagad</SelectItem>
+                        <SelectItem value="ROCKET">Rocket</SelectItem>
+                        <SelectItem value="CARD">Debit/Credit Card</SelectItem>
+                        <SelectItem value="CASH">Cash</SelectItem>
+                        <SelectItem value="BANK_TRANSFER">Bank</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      step={0.01}
+                      placeholder="Amount 2"
+                      className="h-8 text-xs"
+                      value={splitAmount2}
+                      onChange={(e) => setSplitAmount2(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label>Amount (৳) *</Label>
+                  <Input
+                    type="number"
+                    min={0.01}
+                    step={0.01}
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    placeholder="Enter payment amount"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Payment Method *</Label>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CASH">Cash</SelectItem>
+                      <SelectItem value="CARD">Debit / Credit Card</SelectItem>
+                      <SelectItem value="BKASH">bKash</SelectItem>
+                      <SelectItem value="NAGAD">Nagad</SelectItem>
+                      <SelectItem value="ROCKET">Rocket</SelectItem>
+                      <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
 
             <div className="space-y-2">
-              <Label>Reference (Optional)</Label>
+              <Label>Reference / Transaction ID (Optional)</Label>
               <Input
                 value={paymentReference}
                 onChange={(e) => setPaymentReference(e.target.value)}
-                placeholder="Transaction reference"
+                placeholder="TrxID / Bank slip / Card Auth"
               />
             </div>
           </div>
@@ -1581,7 +2102,77 @@ export default function BillingModule() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleRecordPayment} disabled={recordingPayment} className="bg-green-700 hover:bg-green-800 text-white">
-              {recordingPayment ? "Recording..." : "Record Payment"}
+              {recordingPayment ? "Recording..." : isSplitPayment ? "Record Split Payments" : "Record Payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════════════════════ ISSUE REFUND VOUCHER DIALOG ═══════════════════════════ */}
+      <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><RotateCcw className="size-5 text-rose-600" /> Issue Refund Voucher</DialogTitle>
+            <DialogDescription>
+              Create an audit-approved refund voucher with transaction reversal tracking.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Select Invoice *</Label>
+              <Select value={refundInvoiceId} onValueChange={(val) => {
+                setRefundInvoiceId(val)
+                const inv = invoices.find(i => i.id === val)
+                if (inv && inv.totalPaid) {
+                  setRefundAmount(inv.totalPaid.toFixed(2))
+                }
+              }}>
+                <SelectTrigger className="w-full text-xs"><SelectValue placeholder="Choose paid invoice..." /></SelectTrigger>
+                <SelectContent>
+                  {invoices.filter(i => (i.totalPaid || 0) > 0).map((i) => (
+                    <SelectItem key={i.id} value={i.id} className="text-xs">
+                      {i.invoiceNo} — {i.patient?.name || "Patient"} (Paid: ৳{i.totalPaid})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Refund Amount (৳) *</Label>
+              <Input
+                type="number"
+                step={0.01}
+                placeholder="0.00"
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Reason for Refund *</Label>
+              <Input
+                placeholder="E.g., Medicine returned, doctor cancelled, duplicate charge"
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Approved By</Label>
+              <Input
+                placeholder="Clinic Manager / Authority"
+                value={refundApprovedBy}
+                onChange={(e) => setRefundApprovedBy(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRefundDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateRefund} disabled={issuingRefund} className="bg-rose-700 hover:bg-rose-800 text-white">
+              {issuingRefund ? "Processing..." : "Approve & Issue Refund"}
             </Button>
           </DialogFooter>
         </DialogContent>

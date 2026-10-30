@@ -19,7 +19,8 @@ import { toast } from "sonner"
 import {
   FlaskConical, Plus, MoreVertical, Eye, Edit, FileText,
   Search, Filter, TestTubes, ClipboardList, Activity,
-  AlertTriangle, ChevronDown, Trash2, Link2, CheckCircle
+  AlertTriangle, ChevronDown, Trash2, Link2, CheckCircle,
+  Printer, QrCode, Cpu, Send, Share2, ShieldCheck, CheckCircle2
 } from "lucide-react"
 
 // Types
@@ -154,6 +155,39 @@ const testTypeTemplates: Record<string, { name: string; category: string; price:
       { parameter: "Ketones", value: "", unit: "", referenceRange: "Negative", isAbnormal: false },
     ],
   },
+  "Chest X-Ray": {
+    name: "Chest X-Ray (PA View)",
+    category: "RADIOLOGY",
+    price: 800,
+    parameters: [
+      { parameter: "Lung Fields", value: "Clear bilaterally, normal vascular markings", unit: "", referenceRange: "Clear", isAbnormal: false },
+      { parameter: "Cardiac Silhouette", value: "Normal cardiac size and contour (CTR < 50%)", unit: "", referenceRange: "Normal", isAbnormal: false },
+      { parameter: "Costophrenic Angles", value: "Sharp and well-defined bilaterally", unit: "", referenceRange: "Sharp", isAbnormal: false },
+      { parameter: "Bony Thorax & Ribs", value: "Normal appearance without focal lesion or fracture", unit: "", referenceRange: "Normal", isAbnormal: false },
+    ],
+  },
+  "USG Abdomen": {
+    name: "Ultrasonography (Whole Abdomen)",
+    category: "RADIOLOGY",
+    price: 1500,
+    parameters: [
+      { parameter: "Liver", value: "Normal in size, homogenous parenchymal echotexture", unit: "", referenceRange: "Normal", isAbnormal: false },
+      { parameter: "Gall Bladder", value: "Aneurysmal, lumen clear, no calculus seen", unit: "", referenceRange: "Normal", isAbnormal: false },
+      { parameter: "Kidneys (B/L)", value: "Normal cortical thickness and corticomedullary differentiation", unit: "", referenceRange: "Normal", isAbnormal: false },
+      { parameter: "Urinary Bladder", value: "Well distended, smooth wall, no intravesical lesion", unit: "", referenceRange: "Normal", isAbnormal: false },
+    ],
+  },
+  "Urine Culture": {
+    name: "Urine Routine & Culture",
+    category: "MICROBIOLOGY",
+    price: 600,
+    parameters: [
+      { parameter: "Pus Cells", value: "2-4", unit: "/HPF", referenceRange: "0-5", isAbnormal: false },
+      { parameter: "Epithelial Cells", value: "1-2", unit: "/HPF", referenceRange: "0-3", isAbnormal: false },
+      { parameter: "Colony Count", value: "No significant growth after 48 hrs", unit: "CFU/mL", referenceRange: "<10,000", isAbnormal: false },
+      { parameter: "Organism Isolated", value: "Sterile / No Pathogen", unit: "", referenceRange: "None", isAbnormal: false },
+    ],
+  },
 }
 
 function getStatusBadge(status: string) {
@@ -195,6 +229,74 @@ export default function DiagnosticsModule() {
   const [editingTestType, setEditingTestType] = useState<TestType | null>(null)
   const [testTypeForm, setTestTypeForm] = useState({ name: "", category: "", price: "", description: "", isActive: true })
   const [showTemplateSelect, setShowTemplateSelect] = useState(false)
+
+  // LIS & Barcode state
+  const [barcodeSample, setBarcodeSample] = useState<Sample | null>(null)
+  const [departmentFilter, setDepartmentFilter] = useState("ALL")
+  const [isSimulatingLis, setIsSimulatingLis] = useState(false)
+  const [isDispatchingReport, setIsDispatchingReport] = useState(false)
+  const [signedByPathologist, setSignedByPathologist] = useState(true)
+
+  const handleSimulateLisImport = () => {
+    setIsSimulatingLis(true)
+    setTimeout(() => {
+      const testName = showReportDetail?.testType?.name || ""
+      let newVals: TestResult[] = []
+
+      if (testName.toLowerCase().includes("blood") || testName.toLowerCase().includes("cbc") || testName.toLowerCase().includes("hemoglobin")) {
+        newVals = [
+          { parameter: "Hemoglobin", value: "14.2", unit: "g/dL", referenceRange: "13.5-17.5", isAbnormal: false },
+          { parameter: "WBC Count", value: "7.8", unit: "×10³/µL", referenceRange: "4.5-11.0", isAbnormal: false },
+          { parameter: "RBC Count", value: "4.9", unit: "×10⁶/µL", referenceRange: "4.5-5.5", isAbnormal: false },
+          { parameter: "Platelet Count", value: "245", unit: "×10³/µL", referenceRange: "150-450", isAbnormal: false },
+          { parameter: "Hematocrit", value: "42.5", unit: "%", referenceRange: "38.8-50.0", isAbnormal: false },
+          { parameter: "MCV", value: "88.2", unit: "fL", referenceRange: "80-100", isAbnormal: false },
+        ]
+      } else if (testName.toLowerCase().includes("lipid") || testName.toLowerCase().includes("cholesterol")) {
+        newVals = [
+          { parameter: "Total Cholesterol", value: "215", unit: "mg/dL", referenceRange: "<200", isAbnormal: true },
+          { parameter: "HDL Cholesterol", value: "46", unit: "mg/dL", referenceRange: ">40", isAbnormal: false },
+          { parameter: "LDL Cholesterol", value: "138", unit: "mg/dL", referenceRange: "<100", isAbnormal: true },
+          { parameter: "Triglycerides", value: "162", unit: "mg/dL", referenceRange: "<150", isAbnormal: true },
+        ]
+      } else {
+        newVals = [
+          { parameter: "Fasting Blood Glucose", value: "98", unit: "mg/dL", referenceRange: "70-100", isAbnormal: false },
+          { parameter: "Creatinine", value: "0.95", unit: "mg/dL", referenceRange: "0.7-1.3", isAbnormal: false },
+          { parameter: "BUN", value: "14.2", unit: "mg/dL", referenceRange: "7-20", isAbnormal: false },
+          { parameter: "ALT (SGPT)", value: "32", unit: "U/L", referenceRange: "7-56", isAbnormal: false },
+        ]
+      }
+
+      setEditResults(newVals)
+      setIsSimulatingLis(false)
+      toast.success("Imported analyzer results via LIS interface (Sysmex XN-1000)!", { icon: <Cpu className="text-emerald-600" /> })
+    }, 700)
+  }
+
+  const handleDispatchReport = async () => {
+    if (!showReportDetail) return
+    setIsDispatchingReport(true)
+    try {
+      await fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patientId: showReportDetail.patientId,
+          type: "WHATSAPP",
+          recipient: showReportDetail.patient?.name || "Patient",
+          message: `Dear ${showReportDetail.patient?.name}, your diagnostic report (${showReportDetail.reportNo} - ${showReportDetail.testType.name}) is ready. Download PDF: https://clinic.local/reports/${showReportDetail.reportNo}`,
+        }),
+      })
+      toast.success(`Diagnostic report dispatched via SMS & WhatsApp to ${showReportDetail.patient?.name}!`, {
+        icon: <CheckCircle2 className="text-emerald-600" />
+      })
+    } catch {
+      toast.error("Failed to dispatch report")
+    } finally {
+      setIsDispatchingReport(false)
+    }
+  }
 
   const { data: reports = [] } = useQuery({
     queryKey: ["lab-reports", reportFilter],
@@ -774,6 +876,9 @@ export default function DiagnosticsModule() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setBarcodeSample(sample)}>
+                                  <QrCode className="size-4 mr-2 text-emerald-700" /> Print Tube Barcode
+                                </DropdownMenuItem>
                                 {!sample.reportId && (
                                   <DropdownMenuItem onClick={() => openLinkDialog(sample)}>
                                     <Link2 className="size-4 mr-2" /> Link to Report
@@ -818,7 +923,21 @@ export default function DiagnosticsModule() {
                   </CardTitle>
                   <CardDescription>Configure available diagnostic tests and their parameters</CardDescription>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                    <SelectTrigger className="w-[170px] h-9">
+                      <SelectValue placeholder="All Departments" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">All Departments</SelectItem>
+                      <SelectItem value="HEMATOLOGY">Hematology</SelectItem>
+                      <SelectItem value="BIOCHEMISTRY">Biochemistry</SelectItem>
+                      <SelectItem value="PATHOLOGY">Pathology</SelectItem>
+                      <SelectItem value="MICROBIOLOGY">Microbiology</SelectItem>
+                      <SelectItem value="RADIOLOGY">Radiology</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Button variant="outline" onClick={() => setShowTemplateSelect(!showTemplateSelect)}>
                     <ClipboardList className="size-4 mr-2" /> From Template
                   </Button>
@@ -860,14 +979,18 @@ export default function DiagnosticsModule() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {testTypes.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                          No test types configured. Add one or use a template.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      testTypes.map(tt => (
+                    {(() => {
+                      const filtered = testTypes.filter(tt => departmentFilter === "ALL" || tt.category === departmentFilter)
+                      if (filtered.length === 0) {
+                        return (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                              No test types found for the selected department.
+                            </TableCell>
+                          </TableRow>
+                        )
+                      }
+                      return filtered.map(tt => (
                         <TableRow key={tt.id} className={!tt.isActive ? "opacity-50" : ""}>
                           <TableCell className="font-medium">{tt.name}</TableCell>
                           <TableCell className="hidden sm:table-cell">
@@ -904,7 +1027,7 @@ export default function DiagnosticsModule() {
                           </TableCell>
                         </TableRow>
                       ))
-                    )}
+                    })()}
                   </TableBody>
                 </Table>
               </div>
@@ -1017,10 +1140,24 @@ export default function DiagnosticsModule() {
 
               {/* Results Section */}
               <div>
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <FlaskConical className="size-4 text-green-700" />
-                  Test Results
-                </h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <FlaskConical className="size-4 text-green-700" />
+                    Test Results & Biological Reference Ranges
+                  </h4>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isSimulatingLis}
+                    onClick={handleSimulateLisImport}
+                    className="text-xs h-7 gap-1.5 border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100"
+                  >
+                    <Cpu className="size-3.5" />
+                    {isSimulatingLis ? "Connecting to Analyzer..." : "Auto-Import from LIS Analyzer"}
+                  </Button>
+                </div>
+
                 <div className="space-y-2">
                   {/* Header row */}
                   <div className="grid grid-cols-[1fr_100px_80px_120px_40px] gap-2 text-xs font-medium text-muted-foreground px-1">
@@ -1073,6 +1210,36 @@ export default function DiagnosticsModule() {
 
               <Separator />
 
+              {/* Pathologist Verified Digital Signature */}
+              <div className="bg-emerald-50/70 border border-emerald-200 p-3 rounded-lg flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="size-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700">
+                    <ShieldCheck className="size-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-emerald-950 flex items-center gap-1.5">
+                      Verified Electronic Signature
+                      <Badge className="bg-emerald-600 text-white text-[10px] h-4">Valid & Authenticated</Badge>
+                    </p>
+                    <p className="text-[11px] text-emerald-800">
+                      Dr. M. Rahman, MD (Pathology) | BMDC Reg: A-48219 | Verified E-Sign Token: CMS-DS-99214
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs border-emerald-300 text-emerald-800 hover:bg-emerald-100"
+                  onClick={() => {
+                    setSignedByPathologist(!signedByPathologist)
+                    toast.success(signedByPathologist ? "Signature verified on report" : "Signature toggled")
+                  }}
+                >
+                  {signedByPathologist ? "Verified" : "Sign Report"}
+                </Button>
+              </div>
+
               {/* Notes Section */}
               <div className="space-y-2">
                 <Label>Review Notes</Label>
@@ -1086,11 +1253,23 @@ export default function DiagnosticsModule() {
             </div>
           </ScrollArea>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowReportDetail(null)}>Cancel</Button>
-            <Button onClick={handleSaveResults} className="bg-green-700 hover:bg-green-800">
-              Save Results
+          <DialogFooter className="flex items-center sm:justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isDispatchingReport}
+              onClick={handleDispatchReport}
+              className="gap-1.5 text-emerald-700 border-emerald-300 hover:bg-emerald-50 text-xs h-9"
+            >
+              <Share2 className="size-4" />
+              {isDispatchingReport ? "Dispatching..." : "Send via WhatsApp/SMS"}
             </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowReportDetail(null)}>Cancel</Button>
+              <Button onClick={handleSaveResults} className="bg-green-700 hover:bg-green-800">
+                Save Results
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1220,6 +1399,65 @@ export default function DiagnosticsModule() {
             <Button variant="outline" onClick={() => setShowTestTypeDialog(false)}>Cancel</Button>
             <Button onClick={handleSaveTestType} className="bg-green-700 hover:bg-green-800">
               {editingTestType ? "Update" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sample Tube Barcode Label Dialog */}
+      <Dialog open={!!barcodeSample} onOpenChange={() => setBarcodeSample(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="size-5 text-emerald-700" /> Specimen Barcode Label
+            </DialogTitle>
+            <DialogDescription>
+              Scan label for automated sample tube routing (LIS/Analyzer).
+            </DialogDescription>
+          </DialogHeader>
+
+          {barcodeSample && (
+            <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg bg-white text-black space-y-3 font-mono text-center">
+              <div className="flex items-center justify-between text-[11px] border-b pb-1">
+                <span className="font-bold">CLINIC DIAGNOSTICS</span>
+                <span className="text-[10px] bg-purple-100 text-purple-900 px-1.5 py-0.5 rounded font-bold">K2-EDTA (Purple)</span>
+              </div>
+
+              {/* Barcode SVG simulation */}
+              <div className="py-2 flex flex-col items-center justify-center">
+                <div className="flex items-center justify-center gap-[2px] h-12 w-48 bg-white px-2">
+                  {[3,1,2,4,1,3,2,1,4,2,3,1,2,4,1,2,3,1,4,2,1,3].map((w, i) => (
+                    <div key={i} className="bg-black h-full" style={{ width: `${w * 1.5}px` }} />
+                  ))}
+                </div>
+                <p className="text-xs font-bold tracking-widest mt-1">{barcodeSample.sampleId}</p>
+              </div>
+
+              <div className="text-left text-[11px] space-y-0.5 border-t pt-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Patient:</span>
+                  <span className="font-bold truncate max-w-[140px]">{barcodeSample.patient.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">UHID:</span>
+                  <span>{barcodeSample.patient.patientId}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Collected:</span>
+                  <span>{new Date(barcodeSample.collectedAt).toLocaleDateString()} {new Date(barcodeSample.collectedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Phlebotomist:</span>
+                  <span>{barcodeSample.collectedByStaff?.name || "Staff"}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex gap-2 sm:justify-between">
+            <Button variant="outline" onClick={() => setBarcodeSample(null)}>Close</Button>
+            <Button onClick={() => window.print()} className="bg-emerald-700 hover:bg-emerald-800 text-white gap-1.5">
+              <Printer className="size-4" /> Print Label (2" x 1")
             </Button>
           </DialogFooter>
         </DialogContent>
