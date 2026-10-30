@@ -32,6 +32,13 @@ export async function GET(request: NextRequest) {
           appointment: {
             select: { id: true, date: true, type: true },
           },
+          payments: {
+            select: { id: true, amount: true, method: true, createdAt: true },
+          },
+          refunds: {
+            select: { id: true, amount: true, voucherNo: true, createdAt: true },
+          },
+          items: true,
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -59,7 +66,20 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { patientId, appointmentId, items, discount = 0 } = body
+    const {
+      patientId,
+      appointmentId,
+      items,
+      discount = 0,
+      discountCode,
+      vatPercent = 0,
+      taxAmount = 0,
+      copayAmount = 0,
+      corporateTieUp,
+      branchId,
+      notes,
+      initialPayments = [], // support split payments upfront [{ amount, method, reference }]
+    } = body
 
     if (!patientId) {
       return NextResponse.json({ error: 'Patient is required' }, { status: 400 })
@@ -72,7 +92,8 @@ export async function POST(request: NextRequest) {
       return sum + item.quantity * item.unitPrice
     }, 0)
 
-    const netAmount = totalAmount - discount
+    const finalTax = taxAmount || (vatPercent > 0 ? (totalAmount * vatPercent) / 100 : 0)
+    const netAmount = Math.max(0, totalAmount + finalTax - discount - copayAmount)
 
     // Generate invoice number
     const lastInvoice = await db.invoice.findFirst({
@@ -90,15 +111,25 @@ export async function POST(request: NextRequest) {
     const invoiceNo = `INV-${String(nextNum).padStart(4, '0')}`
 
     const invoice = await db.$transaction(async (tx) => {
+      const paidUpfront = initialPayments.reduce((s: number, p: any) => s + (parseFloat(p.amount) || 0), 0)
+      const invoiceStatus = paidUpfront >= netAmount ? 'PAID' : paidUpfront > 0 ? 'PARTIALLY_PAID' : 'PENDING'
+
       const newInvoice = await tx.invoice.create({
         data: {
           invoiceNo,
           patientId,
           appointmentId: appointmentId || null,
           totalAmount,
-          discount,
+          discount: parseFloat(discount) || 0,
+          discountCode: discountCode || null,
+          taxAmount: parseFloat(finalTax.toString()) || 0,
+          vatPercent: parseFloat(vatPercent) || 0,
+          copayAmount: parseFloat(copayAmount) || 0,
+          corporateTieUp: corporateTieUp || null,
           netAmount,
-          status: 'PENDING',
+          status: invoiceStatus,
+          branchId: branchId || null,
+          notes: notes || null,
         },
         include: {
           patient: {
@@ -107,24 +138,36 @@ export async function POST(request: NextRequest) {
         },
       })
 
+      // Add invoice items
       await tx.invoiceItem.createMany({
         data: items.map((item: { description: string; category: string; quantity: number; unitPrice: number }) => ({
           invoiceId: newInvoice.id,
           description: item.description,
-          category: item.category,
+          category: item.category || 'OTHER',
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           total: item.quantity * item.unitPrice,
         })),
       })
 
-      // Link appointment to invoice if provided
-      if (appointmentId) {
-        await tx.appointment.update({
-          where: { id: appointmentId },
-          data: { invoiceId: newInvoice.id },
-        })
+      // Record split payments upfront if provided
+      if (initialPayments && initialPayments.length > 0) {
+        for (const p of initialPayments) {
+          if (p.amount > 0) {
+            await tx.payment.create({
+              data: {
+                invoiceId: newInvoice.id,
+                amount: parseFloat(p.amount),
+                method: p.method || 'CASH',
+                reference: p.reference || null,
+              },
+            })
+          }
+        }
       }
+
+      return newInvoice
+    })
 
       return newInvoice
     })

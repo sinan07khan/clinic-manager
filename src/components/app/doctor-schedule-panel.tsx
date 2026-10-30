@@ -359,7 +359,7 @@ export default function DoctorSchedulePanel({ open, onOpenChange }: DoctorSchedu
       return
     }
 
-    const results = []
+    const results: Array<{ day: number; success: boolean; error?: unknown }> = []
     for (const day of copyTargetDays) {
       try {
         const res = await fetch('/api/doctor-schedules', {

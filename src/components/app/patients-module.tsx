@@ -19,6 +19,9 @@ import {
   Heart,
   Activity,
   X,
+  QrCode,
+  Printer,
+  Zap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -233,6 +236,18 @@ export default function PatientsModule() {
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null)
   const [selectedPatient, setSelectedPatient] = useState<PatientDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [uhidCardOpen, setUhidCardOpen] = useState(false)
+  const [uhidPatient, setUhidPatient] = useState<Patient | null>(null)
+  const [fastTrackOpen, setFastTrackOpen] = useState(false)
+  const [fastTrackSubmitting, setFastTrackSubmitting] = useState(false)
+  const [fastTrackForm, setFastTrackForm] = useState({
+    name: '',
+    phone: '',
+    emergencyContact: '',
+    emergencyPhone: '',
+    triagePriority: 'EMERGENCY',
+    emergencyNotes: '',
+  })
 
   // Form state
   const [form, setForm] = useState({
@@ -299,6 +314,62 @@ export default function PatientsModule() {
   const openAddDialog = () => {
     resetForm()
     setFormOpen(true)
+  }
+
+  const openUhidCard = (patient: Patient) => {
+    setUhidPatient(patient)
+    setUhidCardOpen(true)
+  }
+
+  const handleFastTrackRegister = async () => {
+    if (!fastTrackForm.name || !fastTrackForm.phone) {
+      toast({ title: 'Validation Error', description: 'Patient name and phone are required for emergency entry', variant: 'destructive' })
+      return
+    }
+
+    setFastTrackSubmitting(true)
+    try {
+      // 1. Create Patient
+      const res = await fetch('/api/patients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: fastTrackForm.name,
+          phone: fastTrackForm.phone,
+          emergencyContact: fastTrackForm.emergencyContact || 'Emergency Relative',
+          emergencyPhone: fastTrackForm.emergencyPhone || fastTrackForm.phone,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to register patient')
+
+      // 2. Auto-log emergency vitals & triage
+      await fetch('/api/vitals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientId: data.id,
+          triagePriority: fastTrackForm.triagePriority,
+          notes: fastTrackForm.emergencyNotes || 'Emergency fast-track walk-in admission',
+        }),
+      })
+
+      toast({ title: 'Fast-Track Registered', description: `UHID ${data.patientId} assigned. Triage priority: ${fastTrackForm.triagePriority}` })
+      setFastTrackOpen(false)
+      setFastTrackForm({
+        name: '',
+        phone: '',
+        emergencyContact: '',
+        emergencyPhone: '',
+        triagePriority: 'EMERGENCY',
+        emergencyNotes: '',
+      })
+      fetchPatients()
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' })
+    } finally {
+      setFastTrackSubmitting(false)
+    }
   }
 
   const openEditDialog = (patient: Patient) => {
@@ -385,10 +456,20 @@ export default function PatientsModule() {
           <h1 className="text-2xl font-bold tracking-tight text-green-950">Patient Management</h1>
           <p className="text-muted-foreground">Manage patient records and information</p>
         </div>
-        <Button onClick={openAddDialog} className="bg-green-700 hover:bg-green-800 text-white">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Patient
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setFastTrackOpen(true)}
+            variant="destructive"
+            className="bg-red-600 hover:bg-red-700 text-white gap-1.5"
+          >
+            <Zap className="h-4 w-4" />
+            Fast-Track Emergency
+          </Button>
+          <Button onClick={openAddDialog} className="bg-emerald-700 hover:bg-emerald-800 text-white gap-1.5">
+            <Plus className="h-4 w-4" />
+            Add Patient
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -557,6 +638,15 @@ export default function PatientsModule() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openUhidCard(patient)}
+                            title="Print UHID Smart Card"
+                            className="text-purple-700 hover:text-purple-950 hover:bg-purple-50"
+                          >
+                            <QrCode className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"

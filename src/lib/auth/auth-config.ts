@@ -78,7 +78,7 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
     maxAge: 24 * 60 * 60,
   },
-  secret: process.env.NEXTAUTH_SECRET || 'oxygen-health-care-secret-key-2024',
+  secret: process.env.NEXTAUTH_SECRET || 'clinic-manager-secure-key-2026',
 }
 
 // Extend NextAuth types
@@ -89,8 +89,8 @@ declare module 'next-auth' {
       email: string
       name: string
       role: string
-      department?: string
-      specialization?: string
+      department?: string | null
+      specialization?: string | null
     }
   }
 
@@ -99,8 +99,8 @@ declare module 'next-auth' {
     email: string
     name: string
     role: string
-    department?: string
-    specialization?: string
+    department?: string | null
+    specialization?: string | null
   }
 }
 
@@ -108,7 +108,7 @@ declare module 'next-auth/jwt' {
   interface JWT {
     id: string
     role: string
-    department?: string
-    specialization?: string
+    department?: string | null
+    specialization?: string | null
   }
 }

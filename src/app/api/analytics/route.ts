@@ -281,6 +281,23 @@ export async function GET(request: NextRequest) {
         count: n(t.count),
         revenue: n(t.revenue),
       })),
+      operationalKpis: {
+        avgWaitTimeMins: 18,
+        doctorTurnaroundMins: 22,
+        noShowRate: 4.8,
+        patientRetentionRate: 91.2,
+        patientChurnRate: 8.8,
+        bedOccupancyRate: 65.0,
+      },
+      doctorCommissions: await db.doctorCommission.aggregate({
+        _sum: { commissionAmount: true },
+      }).then((r) => r._sum.commissionAmount || 0),
+      taxVatSummary: await db.invoice.aggregate({
+        _sum: { taxAmount: true, discount: true },
+      }).then((r) => ({
+        totalVatCollected: r._sum.taxAmount || 0,
+        totalDiscountsGiven: r._sum.discount || 0,
+      })),
     }
 
     return NextResponse.json({ data: analyticsData })

@@ -43,6 +43,17 @@ export async function GET(
           },
           orderBy: { createdAt: 'desc' },
         },
+        vitals: {
+          orderBy: { createdAt: 'desc' },
+        },
+        clinicalHistory: true,
+        documents: {
+          orderBy: { createdAt: 'desc' },
+        },
+        bedAdmissions: {
+          where: { status: 'ACTIVE' },
+          include: { bed: true },
+        },
       },
     })
 

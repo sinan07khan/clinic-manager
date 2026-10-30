@@ -73,7 +73,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { patientId, doctorId, date, timeSlot, type, notes } = body
+    const {
+      patientId,
+      doctorId,
+      date,
+      timeSlot,
+      type,
+      notes,
+      bookingChannel = 'WALK_IN',
+      triageTag = 'NORMAL',
+      branchId,
+    } = body
 
     if (!patientId || !doctorId || !date || !timeSlot) {
       return NextResponse.json(
@@ -82,14 +92,34 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const apptDate = new Date(date)
+    const dayStart = new Date(apptDate)
+    dayStart.setHours(0, 0, 0, 0)
+    const dayEnd = new Date(apptDate)
+    dayEnd.setHours(23, 59, 59, 999)
+
+    // Calculate sequential token number for this doctor on this day
+    const countForDay = await db.appointment.count({
+      where: {
+        doctorId,
+        date: { gte: dayStart, lte: dayEnd },
+      },
+    })
+    const tokenNumber = countForDay + 1
+
     const appointment = await db.appointment.create({
       data: {
         patientId,
         doctorId,
-        date: new Date(date),
+        date: apptDate,
         timeSlot,
         type: type || 'CONSULTATION',
         notes: notes || null,
+        tokenNumber,
+        queueStatus: 'WAITING',
+        triageTag,
+        bookingChannel,
+        branchId: branchId || null,
       },
       include: {
         patient: {
@@ -108,6 +138,23 @@ export async function POST(request: NextRequest) {
           },
         },
       },
+    })
+
+    // Auto-create confirmation notification log
+    if (appointment.patient.phone) {
+      await db.notificationLog.create({
+        data: {
+          patientId: appointment.patient.id,
+          recipient: appointment.patient.phone,
+          channel: bookingChannel === 'ONLINE' ? 'WHATSAPP' : 'SMS',
+          type: 'APPOINTMENT_CONFIRMATION',
+          message: `Appointment Confirmed! Token #${tokenNumber} for ${appointment.patient.name} with Dr. ${appointment.doctor.name} on ${apptDate.toLocaleDateString()} at ${timeSlot}. Channel: ${bookingChannel}`,
+          status: 'DELIVERED',
+        },
+      })
+    }
+
+    return NextResponse.json(appointment, { status: 201 })
     })
 
     return NextResponse.json(appointment, { status: 201 })

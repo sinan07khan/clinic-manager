@@ -36,7 +36,20 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await req.json()
-    const { status, results, notes, technicianId, sampleId, reviewedBy } = body
+    const {
+      status,
+      results,
+      notes,
+      technicianId,
+      sampleId,
+      reviewedBy,
+      referenceRange,
+      unit,
+      isAbnormal,
+      abnormalFlag,
+      digitalSignature,
+      signatureName,
+    } = body
 
     const existing = await db.labReport.findUnique({ where: { id } })
     if (!existing) {
@@ -50,6 +63,17 @@ export async function PUT(
     if (technicianId !== undefined) updateData.technicianId = technicianId
     if (sampleId !== undefined) updateData.sampleId = sampleId
     if (reviewedBy !== undefined) updateData.reviewedBy = reviewedBy
+    if (referenceRange !== undefined) updateData.referenceRange = referenceRange
+    if (unit !== undefined) updateData.unit = unit
+    if (isAbnormal !== undefined) updateData.isAbnormal = Boolean(isAbnormal)
+    if (abnormalFlag !== undefined) updateData.abnormalFlag = abnormalFlag
+    if (digitalSignature !== undefined) {
+      updateData.digitalSignature = Boolean(digitalSignature)
+      if (digitalSignature) {
+        updateData.signatureName = signatureName || 'Dr. Pathologist, MBBS, MD (Pathology)'
+        updateData.signatureDate = new Date()
+      }
+    }
 
     const report = await db.labReport.update({
       where: { id },

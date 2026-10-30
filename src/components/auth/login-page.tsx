@@ -17,6 +17,11 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const handleFillDemo = () => {
+    setEmail('admin@clinic.com')
+    setPassword('admin123')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -54,21 +59,21 @@ export default function LoginPage() {
       <div className="w-full max-w-md relative z-10 mx-auto">
         {/* Logo and Brand */}
         <div className="text-center mb-6 sm:mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white shadow-lg shadow-green-200/50 border border-green-100 mb-3 sm:mb-4 overflow-hidden">
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white shadow-lg shadow-emerald-200/50 border border-emerald-100 mb-3 sm:mb-4 overflow-hidden">
             <Image
-              src="/logo-oxygen.png"
-              alt="Oxygen Health Care"
+              src="/logo.svg"
+              alt="Clinic Manager"
               width={72}
               height={72}
               className="object-contain"
             />
           </div>
           <h1 className="text-xl sm:text-2xl font-bold">
-            <span className="text-[#212121]">Oxygen</span>{' '}
-            <span className="text-[#D32F2F]">Health Care</span>
+            <span className="text-[#1e293b]">Clinic</span>{' '}
+            <span className="text-emerald-600">Manager</span>
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Clinic & Diagnostic Center Management
+            Healthcare & Diagnostic Management System
           </p>
         </div>
 
@@ -135,7 +140,7 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full h-11 bg-green-700 hover:bg-green-800 text-white font-medium transition-colors"
+                className="w-full h-11 bg-emerald-700 hover:bg-emerald-800 text-white font-medium transition-colors"
                 disabled={loading}
               >
                 {loading ? (
@@ -150,13 +155,40 @@ export default function LoginPage() {
                   </>
                 )}
               </Button>
+
+              {/* Demo Credentials Helper */}
+              <div className="rounded-lg bg-emerald-50/80 border border-emerald-200/70 p-3 text-xs text-emerald-950 mt-4">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="font-semibold text-emerald-900 flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Demo Credentials
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleFillDemo}
+                    className="text-[11px] font-medium text-emerald-700 hover:text-emerald-900 underline underline-offset-2 cursor-pointer"
+                  >
+                    Click to auto-fill
+                  </button>
+                </div>
+                <div className="space-y-1 text-emerald-800">
+                  <div className="flex justify-between">
+                    <span>Email:</span>
+                    <code className="bg-emerald-100/80 px-1.5 py-0.5 rounded text-emerald-900 font-mono text-[11px]">admin@clinic.com</code>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Password:</span>
+                    <code className="bg-emerald-100/80 px-1.5 py-0.5 rounded text-emerald-900 font-mono text-[11px]">admin123</code>
+                  </div>
+                </div>
+              </div>
             </form>
           </CardContent>
         </Card>
 
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground mt-6">
-          Oxygen Health Care &copy; {new Date().getFullYear()} &mdash; All rights reserved
+          Clinic Manager &copy; {new Date().getFullYear()} &mdash; All rights reserved
         </p>
       </div>
     </div>

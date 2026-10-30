@@ -157,6 +157,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result, { status: 201 })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to create payment'
-    return NextResponse.json({ error: message }, { status: error instanceof Error && error.message.includes('exceeds') || error.message.includes('not found') || error.message.includes('cancelled') ? 400 : 500 })
+    const isClientError =
+      message.includes('exceeds') ||
+      message.includes('not found') ||
+      message.includes('cancelled')
+    return NextResponse.json({ error: message }, { status: isClientError ? 400 : 500 })
   }
 }

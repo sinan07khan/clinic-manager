@@ -18,9 +18,7 @@ export async function GET(
         appointment: {
           select: { id: true, date: true, type: true, doctor: { select: { name: true } } },
         },
-        items: {
-          orderBy: { createdAt: 'asc' },
-        },
+        items: true,
         payments: {
           orderBy: { createdAt: 'asc' },
         },

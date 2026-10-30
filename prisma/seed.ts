@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../src/generated/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -41,11 +41,11 @@ async function main() {
 
   const admin = await prisma.staff.create({
     data: {
-      name: 'Admin',
-      email: 'admin@oxygen.com',
-      phone: '',
+      name: 'Clinic Admin',
+      email: 'admin@clinic.com',
+      phone: '+1 234 567 890',
       role: 'SUPER_ADMIN',
-      department: 'Management',
+      department: 'Administration',
       specialization: null,
       isActive: true,
       password: hashedPassword,

@@ -571,8 +571,8 @@ export default function BillingModule() {
 
   const openPaymentDialog = (invoice: Invoice) => {
     setSelectedInvoice(invoice)
-    const remaining = (invoice.netAmount - (invoice.totalPaid || 0)).toFixed(2)
-    setPaymentAmount(remaining > 0 ? remaining : "")
+    const remaining = invoice.netAmount - (invoice.totalPaid || 0)
+    setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : "")
     setPaymentMethod("CASH")
     setPaymentReference("")
     setPaymentDialogOpen(true)

@@ -101,8 +101,8 @@ function AppShell() {
               <SidebarMenuButton size="lg" className="hover:bg-sidebar-accent">
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg overflow-hidden">
                   <Image
-                    src="/logo-oxygen.png"
-                    alt="Oxygen Health Care"
+                    src="/logo.svg"
+                    alt="Clinic Manager"
                     width={32}
                     height={32}
                     className="object-contain"
@@ -110,10 +110,10 @@ function AppShell() {
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">
-                    <span className="text-[#212121]">Oxygen</span>{' '}
-                    <span className="text-[#D32F2F]">Health Care</span>
+                    <span className="text-[#1e293b] dark:text-white">Clinic</span>{' '}
+                    <span className="text-emerald-600">Manager</span>
                   </span>
-                  <span className="truncate text-xs text-muted-foreground">Clinic Management</span>
+                  <span className="truncate text-xs text-muted-foreground">Healthcare System</span>
                 </div>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -251,8 +251,8 @@ export default function Home() {
         <div className="text-center space-y-4">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white shadow-lg shadow-green-200/50 border border-green-100 overflow-hidden">
             <Image
-              src="/logo-oxygen.png"
-              alt="Oxygen Health Care"
+              src="/logo.svg"
+              alt="Clinic Manager"
               width={56}
               height={56}
               className="object-contain"
@@ -260,7 +260,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <div className="size-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm">Loading...</span>
+            <span className="text-sm font-medium text-emerald-800">Loading Clinic Manager...</span>
           </div>
         </div>
       </div>

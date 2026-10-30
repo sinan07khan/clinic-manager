@@ -1,23 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Oxygen Health Care - Clinic & Diagnostic Center Management",
-  description: "Comprehensive clinic and diagnostic center management system by Oxygen Health Care. Manage patients, appointments, billing, diagnostics, inventory, and HR operations.",
+  title: "Clinic Manager - Clinic & Healthcare Management",
+  description: "Comprehensive clinic and healthcare management system. Manage patients, appointments, doctor schedules, billing, diagnostics, inventory, and staff operations.",
   icons: {
-    icon: "/logo-oxygen.png",
+    icon: "/logo.svg",
   },
 };
 
@@ -35,7 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground overflow-x-hidden`}
+        className="font-sans antialiased bg-background text-foreground overflow-x-hidden"
       >
         <Providers>
           {children}

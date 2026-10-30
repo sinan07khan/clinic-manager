@@ -396,7 +396,7 @@ export default function Dashboard() {
                 <CheckCircle2 className="h-6 w-6 text-white" />
               </div>
               <div className="space-y-1">
-                <h3 className="font-semibold text-green-900">Welcome to Oxygen Health Care!</h3>
+                <h3 className="font-semibold text-green-900">Welcome to Clinic Manager!</h3>
                 <p className="text-sm text-green-700/80">
                   Your system is set up and ready. Start by adding patients, staff members, and inventory items
                   using the navigation menu. All modules are accessible from your dashboard.
