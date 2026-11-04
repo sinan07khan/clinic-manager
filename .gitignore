@@ -49,3 +49,8 @@ prompt
 server.log
 # Skills directory
 /skills/
+# Release and deployable artifacts
+/dist/
+/release/
+*.zip
+*.tar.gz
