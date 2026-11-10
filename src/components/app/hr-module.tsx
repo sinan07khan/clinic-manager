@@ -33,6 +33,9 @@ import {
   Stethoscope,
   ClipboardList,
   MoreHorizontal,
+  Building2,
+  Star,
+  MapPin,
 } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
@@ -2226,50 +2229,274 @@ function DutyRosterTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// BRANCHES MANAGEMENT TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface BranchRecord {
+  id: string
+  name: string
+  code: string
+  address: string | null
+  phone: string | null
+  isMain: boolean
+  isActive: boolean
+  createdAt: string
+}
+
+function BranchesTab() {
+  const [branches, setBranches] = useState<BranchRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showDialog, setShowDialog] = useState(false)
+  const [editBranch, setEditBranch] = useState<BranchRecord | null>(null)
+  const [form, setForm] = useState({ name: '', code: '', address: '', phone: '', isMain: false })
+  const [saving, setSaving] = useState(false)
+
+  const fetchBranches = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/branches')
+      if (res.ok) setBranches(await res.json())
+    } catch {}
+    finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { fetchBranches() }, [fetchBranches])
+
+  const openAdd = () => {
+    setEditBranch(null)
+    setForm({ name: '', code: '', address: '', phone: '', isMain: false })
+    setShowDialog(true)
+  }
+
+  const openEdit = (b: BranchRecord) => {
+    setEditBranch(b)
+    setForm({ name: b.name, code: b.code, address: b.address || '', phone: b.phone || '', isMain: b.isMain })
+    setShowDialog(true)
+  }
+
+  const handleSave = async () => {
+    if (!form.name || !form.code) return
+    setSaving(true)
+    try {
+      const method = editBranch ? 'PUT' : 'POST'
+      const body = editBranch ? { id: editBranch.id, ...form } : form
+      const res = await fetch('/api/branches', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) {
+        setShowDialog(false)
+        fetchBranches()
+      }
+    } catch {}
+    finally { setSaving(false) }
+  }
+
+  const handleDelete = async (b: BranchRecord) => {
+    if (b.isMain) return
+    if (!confirm(`Delete branch "${b.name}"? This cannot be undone.`)) return
+    try {
+      await fetch(`/api/branches?id=${b.id}`, { method: 'DELETE' })
+      fetchBranches()
+    } catch {}
+  }
+
+  const handleSetMain = async (b: BranchRecord) => {
+    if (b.isMain) return
+    try {
+      await fetch('/api/branches', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: b.id, isMain: true }),
+      })
+      fetchBranches()
+    } catch {}
+  }
+
+  const handleToggleActive = async (b: BranchRecord) => {
+    try {
+      await fetch('/api/branches', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: b.id, isActive: !b.isActive }),
+      })
+      fetchBranches()
+    } catch {}
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold">Clinic Branches</h2>
+          <p className="text-sm text-muted-foreground">
+            Manage clinic locations, set the main branch, and control active status.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          className="bg-green-700 hover:bg-green-800 text-white shrink-0"
+          onClick={openAdd}
+        >
+          <Plus className="size-4 mr-1.5" /> Add Branch
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <div className="h-20 bg-muted rounded animate-pulse" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : branches.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center text-muted-foreground">
+            <Building2 className="size-10 mx-auto mb-3 opacity-30" />
+            <p className="font-medium">No branches found</p>
+            <p className="text-xs mt-1">Add your first clinic branch to get started.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {branches.map((b) => (
+            <Card
+              key={b.id}
+              className={`relative border ${b.isMain ? 'border-emerald-300 bg-emerald-50/40' : ''} ${!b.isActive ? 'opacity-60' : ''}`}
+            >
+              {b.isMain && (
+                <div className="absolute top-2.5 right-2.5">
+                  <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-bold">
+                    <Star className="size-2.5" /> Main
+                  </span>
+                </div>
+              )}
+              <CardContent className="p-4 space-y-3">
+                <div className="pr-14">
+                  <h3 className="font-semibold text-sm leading-tight">{b.name}</h3>
+                  <span className="text-[11px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded mt-0.5 inline-block">
+                    {b.code}
+                  </span>
+                </div>
+                {b.address && (
+                  <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+                    <MapPin className="size-3 mt-0.5 shrink-0" /> {b.address}
+                  </p>
+                )}
+                {b.phone && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Phone className="size-3 shrink-0" /> {b.phone}
+                  </p>
+                )}
+                <div className="flex items-center gap-1.5 pt-1 border-t border-dashed flex-wrap">
+                  <Button size="sm" variant="ghost" className="h-7 text-xs px-2 hover:bg-emerald-50 hover:text-emerald-700" onClick={() => openEdit(b)}>
+                    <Edit2 className="size-3 mr-1" /> Edit
+                  </Button>
+                  {!b.isMain && (
+                    <>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs px-2 hover:bg-amber-50 hover:text-amber-700" onClick={() => handleSetMain(b)}>
+                        <Star className="size-3 mr-1" /> Set Main
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs px-2 hover:bg-red-50 hover:text-red-600" onClick={() => handleDelete(b)}>
+                        <Trash2 className="size-3 mr-1" /> Delete
+                      </Button>
+                    </>
+                  )}
+                  <Button
+                    size="sm" variant="ghost"
+                    className={`h-7 text-xs px-2 ml-auto ${b.isActive ? 'text-muted-foreground hover:text-red-600 hover:bg-red-50' : 'text-green-700 hover:bg-green-50'}`}
+                    onClick={() => handleToggleActive(b)}
+                  >
+                    {b.isActive ? <XCircle className="size-3 mr-1" /> : <CheckCircle2 className="size-3 mr-1" />}
+                    {b.isActive ? 'Deactivate' : 'Activate'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editBranch ? 'Edit Branch' : 'Add New Branch'}</DialogTitle>
+            <DialogDescription>
+              {editBranch ? 'Update branch details below.' : 'Fill in the details for the new clinic branch.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Branch Name *</Label>
+              <Input placeholder="e.g. Main Clinic" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Branch Code *</Label>
+              <Input placeholder="e.g. BR-MAIN" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Address</Label>
+                <Input placeholder="Full address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Phone</Label>
+                <Input placeholder="+880 1xxx xxxxxx" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+              <Switch id="branch-isMain" checked={form.isMain} onCheckedChange={(v) => setForm({ ...form, isMain: v })} />
+              <Label htmlFor="branch-isMain" className="cursor-pointer">Set as Main Branch</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
+            <Button className="bg-green-700 hover:bg-green-800 text-white" onClick={handleSave} disabled={saving || !form.name || !form.code}>
+              {saving ? 'Saving…' : editBranch ? 'Save Changes' : 'Add Branch'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN HR MODULE
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function HrModule() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-green-950">
-          HR & Payroll Management
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+          HR &amp; Payroll Management
         </h1>
         <p className="text-sm text-muted-foreground">
-          Manage staff directory, attendance, payroll, and duty roster
+          Manage staff directory, attendance, payroll, duty roster, and clinic branches
         </p>
       </div>
 
-      <Tabs defaultValue="staff" className="space-y-6">
-        <TabsList className="bg-green-50 p-1">
-          <TabsTrigger
-            value="staff"
-            className="data-[state=active]:bg-green-700 data-[state=active]:text-white"
-          >
-            <Users className="mr-2 h-4 w-4" />
-            Staff Directory
+      <Tabs defaultValue="staff" className="space-y-4">
+        <TabsList className="bg-green-50 p-1 h-auto flex-wrap gap-1">
+          <TabsTrigger value="staff" className="data-[state=active]:bg-green-700 data-[state=active]:text-white">
+            <Users className="mr-1.5 h-3.5 w-3.5" /> Staff Directory
           </TabsTrigger>
-          <TabsTrigger
-            value="attendance"
-            className="data-[state=active]:bg-green-700 data-[state=active]:text-white"
-          >
-            <Calendar className="mr-2 h-4 w-4" />
-            Attendance
+          <TabsTrigger value="attendance" className="data-[state=active]:bg-green-700 data-[state=active]:text-white">
+            <Calendar className="mr-1.5 h-3.5 w-3.5" /> Attendance
           </TabsTrigger>
-          <TabsTrigger
-            value="payroll"
-            className="data-[state=active]:bg-green-700 data-[state=active]:text-white"
-          >
-            <DollarSign className="mr-2 h-4 w-4" />
-            Payroll
+          <TabsTrigger value="payroll" className="data-[state=active]:bg-green-700 data-[state=active]:text-white">
+            <DollarSign className="mr-1.5 h-3.5 w-3.5" /> Payroll
           </TabsTrigger>
-          <TabsTrigger
-            value="roster"
-            className="data-[state=active]:bg-green-700 data-[state=active]:text-white"
-          >
-            <Clock className="mr-2 h-4 w-4" />
-            Duty Roster
+          <TabsTrigger value="roster" className="data-[state=active]:bg-green-700 data-[state=active]:text-white">
+            <Clock className="mr-1.5 h-3.5 w-3.5" /> Duty Roster
+          </TabsTrigger>
+          <TabsTrigger value="branches" className="data-[state=active]:bg-green-700 data-[state=active]:text-white">
+            <Building2 className="mr-1.5 h-3.5 w-3.5" /> Branches
           </TabsTrigger>
         </TabsList>
 
@@ -2288,7 +2515,12 @@ export default function HrModule() {
         <TabsContent value="roster">
           <DutyRosterTab />
         </TabsContent>
+
+        <TabsContent value="branches">
+          <BranchesTab />
+        </TabsContent>
       </Tabs>
     </div>
   )
 }
+

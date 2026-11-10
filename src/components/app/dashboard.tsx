@@ -52,7 +52,7 @@ import {
 import { Progress } from '@/components/ui/progress'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface DashboardStats {
   todayAppointments: number
@@ -123,7 +123,7 @@ interface DashboardData {
   appointmentStatus: AppointmentStatus[]
 }
 
-// ─── Empty State Data ────────────────────────────────────────────────────────
+// â”€â”€â”€ Empty State Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const emptyData: DashboardData = {
   stats: {
@@ -145,7 +145,7 @@ const emptyData: DashboardData = {
   appointmentStatus: [],
 }
 
-// ─── Chart Configs ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Chart Configs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const revenueChartConfig: ChartConfig = {
   revenue: {
@@ -184,7 +184,7 @@ const appointmentChartConfig: ChartConfig = {
   },
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function getStatusBadge(status: string) {
   switch (status) {
@@ -221,10 +221,10 @@ function getAttendanceBadge(status: string) {
 }
 
 function formatBDT(amount: number): string {
-  return `৳${amount.toLocaleString('en-BD')}`
+  return `à§³${amount.toLocaleString('en-BD')}`
 }
 
-// ─── Empty State Component ───────────────────────────────────────────────────
+// â”€â”€â”€ Empty State Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function EmptyState({ title, description }: { title: string; description: string }) {
   return (
@@ -236,7 +236,7 @@ function EmptyState({ title, description }: { title: string; description: string
   )
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData>(emptyData)
@@ -273,12 +273,12 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[...Array(4)].map((_, i) => (
             <Card key={i} className="h-[120px] bg-muted/30" />
           ))}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {[...Array(3)].map((_, i) => (
             <Card key={i} className="h-[350px] bg-muted/30" />
           ))}
@@ -304,10 +304,10 @@ export default function Dashboard() {
         <p className="text-muted-foreground text-sm sm:text-base">Overview of your clinic operations today</p>
       </div>
 
-      {/* ── Stats Cards ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* â”€â”€ Stats Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card className="bg-card rounded-xl border shadow-sm">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground font-medium">Today&apos;s Appointments</p>
@@ -327,7 +327,7 @@ export default function Dashboard() {
         </Card>
 
         <Card className="bg-card rounded-xl border shadow-sm">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground font-medium">Today&apos;s Patients</p>
@@ -347,7 +347,7 @@ export default function Dashboard() {
         </Card>
 
         <Card className="bg-card rounded-xl border shadow-sm">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground font-medium">Today&apos;s Revenue</p>
@@ -367,7 +367,7 @@ export default function Dashboard() {
         </Card>
 
         <Card className="bg-card rounded-xl border shadow-sm">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground font-medium">Today&apos;s Expenses</p>
@@ -387,10 +387,10 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* ── Welcome Banner for empty state ───────────────────────────────── */}
+      {/* â”€â”€ Welcome Banner for empty state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {isEmpty && (
         <Card className="bg-gradient-to-r from-green-50 to-green-100/50 border-green-200/50 rounded-xl">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-5">
             <div className="flex flex-col sm:flex-row items-start gap-4">
               <div className="h-12 w-12 rounded-xl bg-green-600 flex items-center justify-center shrink-0">
                 <CheckCircle2 className="h-6 w-6 text-white" />
@@ -407,8 +407,8 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* ── Charts Section ───────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* â”€â”€ Charts Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Weekly Revenue Trend */}
         <Card className="bg-card rounded-xl border shadow-sm lg:col-span-2">
           <CardHeader className="pb-2">
@@ -498,8 +498,8 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* ── Bottom Grid: Recent Activity + Low Stock + Upcoming ─────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* â”€â”€ Bottom Grid: Recent Activity + Low Stock + Upcoming â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Recent Appointments */}
         <Card className="bg-card rounded-xl border shadow-sm lg:col-span-2">
           <CardHeader className="pb-3">
@@ -511,9 +511,9 @@ export default function Dashboard() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             {data.recentAppointments.length > 0 ? (
-              <div className="overflow-x-auto -mx-6"><Table>
+              <div className="overflow-x-auto"><Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="text-xs font-semibold">Patient</TableHead>
@@ -581,7 +581,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* ── Doctor Attendance + Upcoming Appointments ────────────────────── */}
+      {/* â”€â”€ Doctor Attendance + Upcoming Appointments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Doctor Attendance Today */}
         <Card className="bg-card rounded-xl border shadow-sm">
@@ -654,3 +654,6 @@ export default function Dashboard() {
     </div>
   )
 }
+
+
+

@@ -21,6 +21,8 @@ interface NavigationStore {
   setSidebarOpen: (open: boolean) => void
   selectedBranch: string
   setSelectedBranch: (branch: string) => void
+  selectedBranchId: string
+  setSelectedBranchId: (id: string) => void
 }
 
 export const useNavigationStore = create<NavigationStore>((set) => ({
@@ -28,6 +30,8 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
   setActiveModule: (module) => set({ activeModule: module }),
   sidebarOpen: true,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
-  selectedBranch: 'Main Clinic - Central',
+  selectedBranch: '',
   setSelectedBranch: (branch) => set({ selectedBranch: branch }),
+  selectedBranchId: '',
+  setSelectedBranchId: (id) => set({ selectedBranchId: id }),
 }))

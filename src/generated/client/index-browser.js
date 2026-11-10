@@ -124,6 +124,7 @@ exports.Prisma.BranchScalarFieldEnum = {
   code: 'code',
   address: 'address',
   phone: 'phone',
+  isMain: 'isMain',
   isActive: 'isActive',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

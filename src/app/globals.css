@@ -123,3 +123,41 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ── App-wide layout & spacing utilities ─────────────────────────── */
+@layer utilities {
+  /* Page section wrapper — consistent vertical spacing between sections */
+  .page-section {
+    @apply space-y-4;
+  }
+
+  /* Page header row */
+  .page-header {
+    @apply flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3;
+  }
+
+  /* Standard card body padding */
+  .card-body {
+    @apply p-4;
+  }
+
+  /* Stat / KPI card content */
+  .stat-card {
+    @apply p-4;
+  }
+}
+
+/* ── Scrollbar styling ──────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-border rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/40;
+}

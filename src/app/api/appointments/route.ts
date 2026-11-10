@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { logAudit } from '@/lib/audit'
 
 // GET /api/appointments - List appointments with filters
 export async function GET(request: NextRequest) {
@@ -153,6 +154,15 @@ export async function POST(request: NextRequest) {
         },
       })
     }
+
+    // Audit log
+    await logAudit({
+      action: 'CREATE',
+      module: 'PATIENTS',
+      recordId: appointment.id,
+      details: `Appointment created: Token #${tokenNumber} for ${appointment.patient.name} with Dr. ${appointment.doctor.name}`,
+      ipAddress: request.headers.get('x-forwarded-for') || '127.0.0.1',
+    })
 
     return NextResponse.json(appointment, { status: 201 })
   } catch (error) {

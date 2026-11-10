@@ -1222,7 +1222,7 @@ export default function DiagnosticsModule() {
                       <Badge className="bg-emerald-600 text-white text-[10px] h-4">Valid & Authenticated</Badge>
                     </p>
                     <p className="text-[11px] text-emerald-800">
-                      Dr. M. Rahman, MD (Pathology) | BMDC Reg: A-48219 | Verified E-Sign Token: CMS-DS-99214
+                      Authorized Medical Officer / Laboratory Director | Certified Digital Signature
                     </p>
                   </div>
                 </div>

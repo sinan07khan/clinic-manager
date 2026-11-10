@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import {
   DollarSign,
   TrendingUp,
@@ -73,7 +74,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type DateRange = '7d' | '30d' | 'thisMonth' | 'lastMonth'
 
@@ -137,142 +138,7 @@ interface AnalyticsData {
   diagnosticTests: DiagnosticTest[]
 }
 
-// ─── Mock Data ───────────────────────────────────────────────────────────────
-
-function generateMockAnalytics(): Record<DateRange, AnalyticsData> {
-  const days30 = Array.from({ length: 30 }, (_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() - (29 - i))
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  })
-
-  const revenueByDay30 = days30.map((date) => ({
-    date,
-    revenue: Math.floor(50000 + Math.random() * 70000),
-  }))
-
-  const patientVisitTrend30 = days30.map((date) => ({
-    date,
-    newPatients: Math.floor(3 + Math.random() * 10),
-    returningPatients: Math.floor(5 + Math.random() * 15),
-  }))
-
-  const revenueByDay7 = revenueByDay30.slice(-7)
-  const patientVisitTrend7 = patientVisitTrend30.slice(-7)
-
-  const doctorPerformance = [
-    { doctorName: 'Dr. Fatima Begum', patients: 156, revenue: 780000, avgRating: 4.8 },
-    { doctorName: 'Dr. Ahmed Khan', patients: 132, revenue: 924000, avgRating: 4.9 },
-    { doctorName: 'Dr. Nasreen Jahan', patients: 98, revenue: 588000, avgRating: 4.7 },
-    { doctorName: 'Dr. Rafiq Islam', patients: 87, revenue: 609000, avgRating: 4.6 },
-    { doctorName: 'Dr. Taslima Akhter', patients: 145, revenue: 435000, avgRating: 4.8 },
-    { doctorName: 'Dr. Habibur Rahman', patients: 67, revenue: 268000, avgRating: 4.5 },
-  ]
-
-  const diagnosticTests = [
-    { testName: 'Complete Blood Count (CBC)', count: 245, revenue: 73500 },
-    { testName: 'Blood Sugar (Fasting)', count: 198, revenue: 29700 },
-    { testName: 'Lipid Profile', count: 156, revenue: 39000 },
-    { testName: 'Liver Function Test', count: 134, revenue: 40200 },
-    { testName: 'Thyroid Panel (TSH)', count: 112, revenue: 44800 },
-    { testName: 'Urinalysis', count: 89, revenue: 8900 },
-    { testName: 'X-Ray (Chest)', count: 67, revenue: 67000 },
-    { testName: 'Ultrasound (Abdomen)', count: 45, revenue: 90000 },
-  ]
-
-  const monthlyRevenue = [
-    { month: 'Jan', thisYear: 1850000, lastYear: 1520000 },
-    { month: 'Feb', thisYear: 2100000, lastYear: 1780000 },
-    { month: 'Mar', thisYear: 1950000, lastYear: 1650000 },
-    { month: 'Apr', thisYear: 2300000, lastYear: 1900000 },
-    { month: 'May', thisYear: 2150000, lastYear: 1820000 },
-    { month: 'Jun', thisYear: 2400000, lastYear: 2050000 },
-  ]
-
-  const baseSummary = {
-    totalRevenue: 2460000,
-    totalExpenses: 890000,
-    netProfit: 1570000,
-    profitMargin: 63.8,
-  }
-
-  return {
-    '7d': {
-      financialSummary: { ...baseSummary, totalRevenue: 576000, totalExpenses: 178000, netProfit: 398000, profitMargin: 69.1 },
-      revenueByDay: revenueByDay7,
-      revenueByService: [
-        { service: 'Consultation', revenue: 288000, fill: 'var(--color-consultation)' },
-        { service: 'Lab Tests', revenue: 173000, fill: 'var(--color-labtests)' },
-        { service: 'Medicine', revenue: 115000, fill: 'var(--color-medicine)' },
-      ],
-      monthlyRevenue,
-      patientVisitTrend: patientVisitTrend7,
-      patientDemographics: [
-        { gender: 'Male', count: 45, fill: 'var(--color-male)' },
-        { gender: 'Female', count: 58, fill: 'var(--color-female)' },
-        { gender: 'Other', count: 2, fill: 'var(--color-other)' },
-      ],
-      doctorPerformance,
-      diagnosticTests,
-    },
-    '30d': {
-      financialSummary: baseSummary,
-      revenueByDay: revenueByDay30,
-      revenueByService: [
-        { service: 'Consultation', revenue: 1230000, fill: 'var(--color-consultation)' },
-        { service: 'Lab Tests', revenue: 738000, fill: 'var(--color-labtests)' },
-        { service: 'Medicine', revenue: 492000, fill: 'var(--color-medicine)' },
-      ],
-      monthlyRevenue,
-      patientVisitTrend: patientVisitTrend30,
-      patientDemographics: [
-        { gender: 'Male', count: 187, fill: 'var(--color-male)' },
-        { gender: 'Female', count: 223, fill: 'var(--color-female)' },
-        { gender: 'Other', count: 8, fill: 'var(--color-other)' },
-      ],
-      doctorPerformance,
-      diagnosticTests,
-    },
-    thisMonth: {
-      financialSummary: { ...baseSummary, totalRevenue: 1920000, totalExpenses: 680000, netProfit: 1240000, profitMargin: 64.6 },
-      revenueByDay: revenueByDay30.slice(-15),
-      revenueByService: [
-        { service: 'Consultation', revenue: 960000, fill: 'var(--color-consultation)' },
-        { service: 'Lab Tests', revenue: 576000, fill: 'var(--color-labtests)' },
-        { service: 'Medicine', revenue: 384000, fill: 'var(--color-medicine)' },
-      ],
-      monthlyRevenue,
-      patientVisitTrend: patientVisitTrend30.slice(-15),
-      patientDemographics: [
-        { gender: 'Male', count: 134, fill: 'var(--color-male)' },
-        { gender: 'Female', count: 168, fill: 'var(--color-female)' },
-        { gender: 'Other', count: 5, fill: 'var(--color-other)' },
-      ],
-      doctorPerformance,
-      diagnosticTests,
-    },
-    lastMonth: {
-      financialSummary: { ...baseSummary, totalRevenue: 2150000, totalExpenses: 750000, netProfit: 1400000, profitMargin: 65.1 },
-      revenueByDay: revenueByDay30,
-      revenueByService: [
-        { service: 'Consultation', revenue: 1075000, fill: 'var(--color-consultation)' },
-        { service: 'Lab Tests', revenue: 645000, fill: 'var(--color-labtests)' },
-        { service: 'Medicine', revenue: 430000, fill: 'var(--color-medicine)' },
-      ],
-      monthlyRevenue,
-      patientVisitTrend: patientVisitTrend30,
-      patientDemographics: [
-        { gender: 'Male', count: 165, fill: 'var(--color-male)' },
-        { gender: 'Female', count: 201, fill: 'var(--color-female)' },
-        { gender: 'Other', count: 6, fill: 'var(--color-other)' },
-      ],
-      doctorPerformance,
-      diagnosticTests,
-    },
-  }
-}
-
-// ─── Chart Configs ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Chart Configs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const revenueTrendConfig: ChartConfig = {
   revenue: {
@@ -354,7 +220,7 @@ const testCountConfig: ChartConfig = {
   },
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ChartEmptyState({ title, description }: { title: string; description: string }) {
   return (
@@ -367,12 +233,12 @@ function ChartEmptyState({ title, description }: { title: string; description: s
 }
 
 function formatBDT(amount: number): string {
-  if (amount >= 100000) return `৳${(amount / 100000).toFixed(1)}L`
-  return `৳${amount.toLocaleString('en-BD')}`
+  if (amount >= 100000) return `à§³${(amount / 100000).toFixed(1)}L`
+  return `à§³${amount.toLocaleString('en-BD')}`
 }
 
 function formatBDTFull(amount: number): string {
-  return `৳${amount.toLocaleString('en-BD')}`
+  return `à§³${amount.toLocaleString('en-BD')}`
 }
 
 const dateRangeLabels: Record<DateRange, string> = {
@@ -382,15 +248,26 @@ const dateRangeLabels: Record<DateRange, string> = {
   lastMonth: 'Last Month',
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+const EMPTY_ANALYTICS: AnalyticsData = {
+  financialSummary: { totalRevenue: 0, totalExpenses: 0, netProfit: 0, profitMargin: 0 },
+  revenueByDay: [],
+  revenueByService: [],
+  monthlyRevenue: [],
+  patientVisitTrend: [],
+  patientDemographics: [],
+  doctorPerformance: [],
+  diagnosticTests: [],
+}
 
 export default function Analytics() {
+  const { data: session } = useSession()
   const [dateRange, setDateRange] = useState<DateRange>('30d')
   const [apiData, setApiData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
-  const mockData = useMemo(() => generateMockAnalytics(), [])
 
-  const data = apiData || mockData[dateRange]
+  const data = apiData ?? EMPTY_ANALYTICS
 
   // Commissions state
   const [commissionsData, setCommissionsData] = useState<{
@@ -455,7 +332,13 @@ export default function Analytics() {
   // Actual cash input for day-end reconciliation
   const [countedCash, setCountedCash] = useState("")
   const [closingNotes, setClosingNotes] = useState("")
-  const [closingStaff, setClosingStaff] = useState("Sinan (Admin)")
+  const [closingStaff, setClosingStaff] = useState(session?.user?.name || "Staff")
+
+  useEffect(() => {
+    if (session?.user?.name) {
+      setClosingStaff(session.user.name)
+    }
+  }, [session?.user?.name])
   const [isSubmittingClosing, setIsSubmittingClosing] = useState(false)
 
   const fetchCommissions = async () => {
@@ -617,10 +500,10 @@ export default function Analytics() {
         </div>
       ) : (
         <>
-          {/* ── Financial Summary Cards ──────────────────────────────────── */}
+          {/* â”€â”€ Financial Summary Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="bg-card rounded-xl border shadow-sm">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-5">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground font-medium">Total Revenue</p>
@@ -638,7 +521,7 @@ export default function Analytics() {
             </Card>
 
             <Card className="bg-card rounded-xl border shadow-sm">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-5">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground font-medium">Total Expenses</p>
@@ -656,7 +539,7 @@ export default function Analytics() {
             </Card>
 
             <Card className="bg-card rounded-xl border shadow-sm">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-5">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground font-medium">Net Profit</p>
@@ -674,7 +557,7 @@ export default function Analytics() {
             </Card>
 
             <Card className="bg-card rounded-xl border shadow-sm">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-5">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground font-medium">Profit Margin</p>
@@ -692,7 +575,7 @@ export default function Analytics() {
             </Card>
           </div>
 
-          {/* ── Tabs for Analytics Sections ──────────────────────────────── */}
+          {/* â”€â”€ Tabs for Analytics Sections â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
           <Tabs defaultValue="revenue" className="space-y-6">
             <TabsList className="flex flex-wrap h-auto p-1 bg-muted">
               <TabsTrigger value="revenue">Revenue & Services</TabsTrigger>
@@ -704,7 +587,7 @@ export default function Analytics() {
               <TabsTrigger value="audit_trail" className="gap-1.5"><ShieldCheck className="size-3.5" /> Audit Trail</TabsTrigger>
             </TabsList>
 
-            {/* ─── Revenue Tab ────────────────────────────────────────────── */}
+            {/* â”€â”€â”€ Revenue Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <TabsContent value="revenue" className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Revenue Trend */}
@@ -799,7 +682,7 @@ export default function Analytics() {
               </Card>
             </TabsContent>
 
-            {/* ─── Patients Tab ───────────────────────────────────────────── */}
+            {/* â”€â”€â”€ Patients Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <TabsContent value="patients" className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Patient Visit Trend */}
@@ -901,7 +784,7 @@ export default function Analytics() {
               </div>
             </TabsContent>
 
-            {/* ─── Doctors Tab ────────────────────────────────────────────── */}
+            {/* â”€â”€â”€ Doctors Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <TabsContent value="doctors" className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Patients per Doctor */}
@@ -957,8 +840,8 @@ export default function Analytics() {
                   <CardTitle className="text-base font-semibold">Doctor Performance Summary</CardTitle>
                   <CardDescription>Detailed breakdown of doctor metrics</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto -mx-6"><Table>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto"><Table>
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
                         <TableHead className="text-xs font-semibold">Doctor</TableHead>
@@ -976,7 +859,7 @@ export default function Analytics() {
                           <TableCell className="text-sm text-right font-mono">{formatBDTFull(doc.revenue)}</TableCell>
                           <TableCell className="text-sm text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              <span className="text-amber-500">★</span>
+                              <span className="text-amber-500">â˜…</span>
                               <span>{doc.avgRating.toFixed(1)}</span>
                             </div>
                           </TableCell>
@@ -991,7 +874,7 @@ export default function Analytics() {
               </Card>
             </TabsContent>
 
-            {/* ─── Diagnostics Tab ────────────────────────────────────────── */}
+            {/* â”€â”€â”€ Diagnostics Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <TabsContent value="diagnostics" className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Most Ordered Tests */}
@@ -1077,25 +960,25 @@ export default function Analytics() {
               </div>
             </TabsContent>
 
-            {/* ─── Doctor Commissions & Payouts Tab ────────────────────────── */}
+            {/* â”€â”€â”€ Doctor Commissions & Payouts Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <TabsContent value="commissions" className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Card className="bg-card rounded-xl border shadow-sm">
-                  <CardContent className="p-6">
+                  <CardContent className="p-4 sm:p-5">
                     <p className="text-sm text-muted-foreground font-medium">Total Accrued Commissions</p>
                     <p className="text-2xl font-bold mt-1 text-foreground">{formatBDTFull(commissionsData.summary.totalCommissions)}</p>
                     <p className="text-xs text-muted-foreground mt-1">Calculated consultation & procedure splits</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-card rounded-xl border border-amber-200 bg-amber-50/30 shadow-sm">
-                  <CardContent className="p-6">
+                  <CardContent className="p-4 sm:p-5">
                     <p className="text-sm text-amber-800 font-medium">Pending Doctor Payouts</p>
                     <p className="text-2xl font-bold mt-1 text-amber-900">{formatBDTFull(commissionsData.summary.pendingCommissions)}</p>
                     <p className="text-xs text-amber-700 mt-1">Ready for disbursement</p>
                   </CardContent>
                 </Card>
                 <Card className="bg-card rounded-xl border border-emerald-200 bg-emerald-50/30 shadow-sm">
-                  <CardContent className="p-6">
+                  <CardContent className="p-4 sm:p-5">
                     <p className="text-sm text-emerald-800 font-medium">Settled / Paid Payouts</p>
                     <p className="text-2xl font-bold mt-1 text-emerald-900">{formatBDTFull(commissionsData.summary.paidCommissions)}</p>
                     <p className="text-xs text-emerald-700 mt-1">Cleared with doctors</p>
@@ -1119,9 +1002,9 @@ export default function Analytics() {
                       <TableRow className="bg-muted/40">
                         <TableHead>Doctor</TableHead>
                         <TableHead>Service / Procedure</TableHead>
-                        <TableHead className="text-right">Service Bill (৳)</TableHead>
+                        <TableHead className="text-right">Service Bill (à§³)</TableHead>
                         <TableHead className="text-right">Share %</TableHead>
-                        <TableHead className="text-right font-bold text-emerald-900">Commission Amount (৳)</TableHead>
+                        <TableHead className="text-right font-bold text-emerald-900">Commission Amount (à§³)</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Date</TableHead>
                         <TableHead className="text-right">Action</TableHead>
@@ -1178,7 +1061,7 @@ export default function Analytics() {
               </Card>
             </TabsContent>
 
-            {/* ─── Daily Cash Closing & Reconciliation Tab ──────────────────── */}
+            {/* â”€â”€â”€ Daily Cash Closing & Reconciliation Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <TabsContent value="cash_closing" className="space-y-6">
               {/* Day-End Live Cash Drawer Reconciliation Card */}
               <Card className="bg-card rounded-xl border border-emerald-200/80 shadow-sm bg-gradient-to-br from-white via-emerald-50/20 to-white">
@@ -1232,7 +1115,7 @@ export default function Analytics() {
 
                   <div className="p-4 bg-muted/40 rounded-xl border grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
                     <div className="sm:col-span-3 space-y-1">
-                      <Label className="text-xs font-semibold">Actual Physical Cash Counted (৳) *</Label>
+                      <Label className="text-xs font-semibold">Actual Physical Cash Counted (à§³) *</Label>
                       <Input
                         type="number"
                         step={0.01}
@@ -1270,9 +1153,9 @@ export default function Analytics() {
                               {Math.abs(diff) < 0.01 ? (
                                 <Badge className="bg-emerald-600 text-white gap-1"><CheckCircle2 className="size-3" /> Exact Match</Badge>
                               ) : diff > 0 ? (
-                                <Badge className="bg-blue-600 text-white gap-1">+৳{diff.toFixed(2)} Surplus</Badge>
+                                <Badge className="bg-blue-600 text-white gap-1">+à§³{diff.toFixed(2)} Surplus</Badge>
                               ) : (
-                                <Badge variant="destructive" className="gap-1">-৳{Math.abs(diff).toFixed(2)} Shortage</Badge>
+                                <Badge variant="destructive" className="gap-1">-à§³{Math.abs(diff).toFixed(2)} Shortage</Badge>
                               )}
                             </div>
                           </div>
@@ -1310,7 +1193,7 @@ export default function Analytics() {
                     <TableHeader>
                       <TableRow className="bg-muted/40">
                         <TableHead>Closing Date</TableHead>
-                        <TableHead className="text-right">Total Inflow (৳)</TableHead>
+                        <TableHead className="text-right">Total Inflow (à§³)</TableHead>
                         <TableHead className="text-right">Cash In Drawer</TableHead>
                         <TableHead className="text-right">Digital Inflow</TableHead>
                         <TableHead className="text-right">Expenses Paid</TableHead>
@@ -1343,9 +1226,9 @@ export default function Analytics() {
                               {Math.abs(h.discrepancy) < 0.01 ? (
                                 <Badge variant="outline" className="text-emerald-700 border-emerald-300">0.00</Badge>
                               ) : h.discrepancy > 0 ? (
-                                <Badge className="bg-blue-100 text-blue-800">+৳{h.discrepancy.toFixed(0)}</Badge>
+                                <Badge className="bg-blue-100 text-blue-800">+à§³{h.discrepancy.toFixed(0)}</Badge>
                               ) : (
-                                <Badge variant="destructive">-৳{Math.abs(h.discrepancy).toFixed(0)}</Badge>
+                                <Badge variant="destructive">-à§³{Math.abs(h.discrepancy).toFixed(0)}</Badge>
                               )}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">{h.closedBy}</TableCell>
@@ -1358,7 +1241,7 @@ export default function Analytics() {
               </Card>
             </TabsContent>
 
-            {/* ─── Immutable Audit Trail Tab ───────────────────────────────── */}
+            {/* â”€â”€â”€ Immutable Audit Trail Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <TabsContent value="audit_trail" className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
@@ -1465,3 +1348,4 @@ export default function Analytics() {
     </div>
   )
 }
+

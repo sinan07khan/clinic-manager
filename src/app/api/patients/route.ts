@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { logAudit } from '@/lib/audit'
 
 // GET /api/patients - List patients with search, filter, pagination
 export async function GET(request: NextRequest) {
@@ -106,6 +107,14 @@ export async function POST(request: NextRequest) {
         emergencyContact: emergencyContact || null,
         emergencyPhone: emergencyPhone || null,
       },
+    })
+
+    await logAudit({
+      action: 'CREATE',
+      module: 'PATIENTS',
+      recordId: patient.id,
+      details: `Patient registered: ${patient.name} (${patient.patientId})`,
+      ipAddress: request.headers.get('x-forwarded-for') || '127.0.0.1',
     })
 
     return NextResponse.json(patient, { status: 201 })

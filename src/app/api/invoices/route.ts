@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { logAudit } from '@/lib/audit'
 
 // GET /api/invoices - List invoices
 export async function GET(request: NextRequest) {
@@ -167,6 +168,15 @@ export async function POST(request: NextRequest) {
       }
 
       return newInvoice
+    })
+
+    // Audit log
+    await logAudit({
+      action: 'CREATE',
+      module: 'BILLING',
+      recordId: invoice.id,
+      details: `Invoice created: ${invoiceNo} for patient ${invoice.patient.name} — ৳${netAmount.toLocaleString()}`,
+      ipAddress: request.headers.get('x-forwarded-for') || '127.0.0.1',
     })
 
     return NextResponse.json(invoice, { status: 201 })

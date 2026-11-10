@@ -4507,6 +4507,7 @@ export namespace Prisma {
     code: string | null
     address: string | null
     phone: string | null
+    isMain: boolean | null
     isActive: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -4518,6 +4519,7 @@ export namespace Prisma {
     code: string | null
     address: string | null
     phone: string | null
+    isMain: boolean | null
     isActive: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -4529,6 +4531,7 @@ export namespace Prisma {
     code: number
     address: number
     phone: number
+    isMain: number
     isActive: number
     createdAt: number
     updatedAt: number
@@ -4542,6 +4545,7 @@ export namespace Prisma {
     code?: true
     address?: true
     phone?: true
+    isMain?: true
     isActive?: true
     createdAt?: true
     updatedAt?: true
@@ -4553,6 +4557,7 @@ export namespace Prisma {
     code?: true
     address?: true
     phone?: true
+    isMain?: true
     isActive?: true
     createdAt?: true
     updatedAt?: true
@@ -4564,6 +4569,7 @@ export namespace Prisma {
     code?: true
     address?: true
     phone?: true
+    isMain?: true
     isActive?: true
     createdAt?: true
     updatedAt?: true
@@ -4648,6 +4654,7 @@ export namespace Prisma {
     code: string
     address: string | null
     phone: string | null
+    isMain: boolean
     isActive: boolean
     createdAt: Date
     updatedAt: Date
@@ -4676,6 +4683,7 @@ export namespace Prisma {
     code?: boolean
     address?: boolean
     phone?: boolean
+    isMain?: boolean
     isActive?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -4687,6 +4695,7 @@ export namespace Prisma {
     code?: boolean
     address?: boolean
     phone?: boolean
+    isMain?: boolean
     isActive?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -4698,6 +4707,7 @@ export namespace Prisma {
     code?: boolean
     address?: boolean
     phone?: boolean
+    isMain?: boolean
     isActive?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -4709,12 +4719,13 @@ export namespace Prisma {
     code?: boolean
     address?: boolean
     phone?: boolean
+    isMain?: boolean
     isActive?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type BranchOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "code" | "address" | "phone" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["branch"]>
+  export type BranchOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "code" | "address" | "phone" | "isMain" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["branch"]>
 
   export type $BranchPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Branch"
@@ -4725,6 +4736,7 @@ export namespace Prisma {
       code: string
       address: string | null
       phone: string | null
+      isMain: boolean
       isActive: boolean
       createdAt: Date
       updatedAt: Date
@@ -5156,6 +5168,7 @@ export namespace Prisma {
     readonly code: FieldRef<"Branch", 'String'>
     readonly address: FieldRef<"Branch", 'String'>
     readonly phone: FieldRef<"Branch", 'String'>
+    readonly isMain: FieldRef<"Branch", 'Boolean'>
     readonly isActive: FieldRef<"Branch", 'Boolean'>
     readonly createdAt: FieldRef<"Branch", 'DateTime'>
     readonly updatedAt: FieldRef<"Branch", 'DateTime'>
@@ -46557,6 +46570,7 @@ export namespace Prisma {
     code: 'code',
     address: 'address',
     phone: 'phone',
+    isMain: 'isMain',
     isActive: 'isActive',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
@@ -47219,6 +47233,7 @@ export namespace Prisma {
     code?: StringFilter<"Branch"> | string
     address?: StringNullableFilter<"Branch"> | string | null
     phone?: StringNullableFilter<"Branch"> | string | null
+    isMain?: BoolFilter<"Branch"> | boolean
     isActive?: BoolFilter<"Branch"> | boolean
     createdAt?: DateTimeFilter<"Branch"> | Date | string
     updatedAt?: DateTimeFilter<"Branch"> | Date | string
@@ -47230,6 +47245,7 @@ export namespace Prisma {
     code?: SortOrder
     address?: SortOrderInput | SortOrder
     phone?: SortOrderInput | SortOrder
+    isMain?: SortOrder
     isActive?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -47244,6 +47260,7 @@ export namespace Prisma {
     name?: StringFilter<"Branch"> | string
     address?: StringNullableFilter<"Branch"> | string | null
     phone?: StringNullableFilter<"Branch"> | string | null
+    isMain?: BoolFilter<"Branch"> | boolean
     isActive?: BoolFilter<"Branch"> | boolean
     createdAt?: DateTimeFilter<"Branch"> | Date | string
     updatedAt?: DateTimeFilter<"Branch"> | Date | string
@@ -47255,6 +47272,7 @@ export namespace Prisma {
     code?: SortOrder
     address?: SortOrderInput | SortOrder
     phone?: SortOrderInput | SortOrder
+    isMain?: SortOrder
     isActive?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -47272,6 +47290,7 @@ export namespace Prisma {
     code?: StringWithAggregatesFilter<"Branch"> | string
     address?: StringNullableWithAggregatesFilter<"Branch"> | string | null
     phone?: StringNullableWithAggregatesFilter<"Branch"> | string | null
+    isMain?: BoolWithAggregatesFilter<"Branch"> | boolean
     isActive?: BoolWithAggregatesFilter<"Branch"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"Branch"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Branch"> | Date | string
@@ -50358,6 +50377,7 @@ export namespace Prisma {
     code: string
     address?: string | null
     phone?: string | null
+    isMain?: boolean
     isActive?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -50369,6 +50389,7 @@ export namespace Prisma {
     code: string
     address?: string | null
     phone?: string | null
+    isMain?: boolean
     isActive?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -50380,6 +50401,7 @@ export namespace Prisma {
     code?: StringFieldUpdateOperationsInput | string
     address?: NullableStringFieldUpdateOperationsInput | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
+    isMain?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -50391,6 +50413,7 @@ export namespace Prisma {
     code?: StringFieldUpdateOperationsInput | string
     address?: NullableStringFieldUpdateOperationsInput | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
+    isMain?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -50402,6 +50425,7 @@ export namespace Prisma {
     code: string
     address?: string | null
     phone?: string | null
+    isMain?: boolean
     isActive?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -50413,6 +50437,7 @@ export namespace Prisma {
     code?: StringFieldUpdateOperationsInput | string
     address?: NullableStringFieldUpdateOperationsInput | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
+    isMain?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -50424,6 +50449,7 @@ export namespace Prisma {
     code?: StringFieldUpdateOperationsInput | string
     address?: NullableStringFieldUpdateOperationsInput | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
+    isMain?: BoolFieldUpdateOperationsInput | boolean
     isActive?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -53956,6 +53982,7 @@ export namespace Prisma {
     code?: SortOrder
     address?: SortOrder
     phone?: SortOrder
+    isMain?: SortOrder
     isActive?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -53967,6 +53994,7 @@ export namespace Prisma {
     code?: SortOrder
     address?: SortOrder
     phone?: SortOrder
+    isMain?: SortOrder
     isActive?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -53978,6 +54006,7 @@ export namespace Prisma {
     code?: SortOrder
     address?: SortOrder
     phone?: SortOrder
+    isMain?: SortOrder
     isActive?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
